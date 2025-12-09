@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8">
-  <title>Bottega del Caffè - Turni (v16)</title>
+  <title>Bottega del Caffè - Turni (v16-hf1)</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <style>
     *{box-sizing:border-box;margin:0;padding:0;}
@@ -1323,70 +1323,249 @@
   });
 
   // GENERA TURNI con controllo riposi target
-  document.getElementById('genBtn').onclick=function(){
-    var start=document.getElementById('weekStart').value;
-    if(!start){alert('Seleziona la data di inizio settimana');return;}
-    var modelId=document.getElementById('modelSelect').value;
-    var models=getModels();
-    var model=models[modelId];
-    if(!model){alert('Modello non valido');return;}
-    var emps=lsGet(STORAGE_EMP,[]);
-    if(emps.length===0){alert('Nessun dipendente');return;}
+  
+// GENERA TURNI con controllo riposi target + rispetto ore min/max (heuristic)
+document.getElementById('genBtn').onclick=function(){
+  var start=document.getElementById('weekStart').value;
+  if(!start){alert('Seleziona la data di inizio settimana');return;}
+  var modelId=document.getElementById('modelSelect').value;
+  var models=getModels();
+  var model=models[modelId];
+  if(!model){alert('Modello non valido');return;}
+  var emps=lsGet(STORAGE_EMP,[]);
+  if(emps.length===0){alert('Nessun dipendente');return;}
 
-    var weekStatus = getWeekStatus(start);
-    var mism=[];
-    emps.forEach(function(e){
-      var target = (e.restTarget!=null)?e.restTarget:2;
-      var have = countRiposiForEmp(weekStatus, e.id);
-      if(have !== target){ mism.push(e.name+' '+have+'/'+target); }
-    });
-    if(mism.length>0){
-      alert('Prima di generare, imposta i riposi settimanali corretti:\n' + mism.join('\n'));
-      return;
-    }
+  var weekStatus = getWeekStatus(start);
+  var mism=[];
+  emps.forEach(function(e){
+    var target = (e.restTarget!=null)?e.restTarget:2;
+    var have = countRiposiForEmp(weekStatus, e.id);
+    if(have !== target){ mism.push(e.name+' '+have+'/'+target); }
+  });
+  if(mism.length>0){
+    alert('Prima di generare, imposta i riposi settimanali corretti:\n' + mism.join('\n'));
+    return;
+  }
 
-    var schedAll=lsGet(STORAGE_SCHED,{});
-    var weeks = Object.keys(schedAll);
-    var weekIndex = weeks.length;
+  var schedAll=lsGet(STORAGE_SCHED,{});
+  var weeks = Object.keys(schedAll);
+  var weekIndex = weeks.length;
 
-    var week={days:{},modelId:modelId,notes:document.getElementById('weekNotes').value||''};
+  var week={days:{},modelId:modelId,notes:document.getElementById('weekNotes').value||''};
 
-    DAYS.forEach(function(d,idx){
-      var def;
-      if(d.key==='sun') def=model.sunday;
-      else if(d.key==='sat') def=(model.saturday || model.weekday);
-      else def=model.weekday;
+  // minuti assegnati nella settimana in generazione
+  var tempMinutes = {};
+  emps.forEach(function(e){ tempMinutes[e.id]=0; });
 
-      var dateStr=fDate(addDays(start,idx));
-      var dayObj={date:dateStr,shifts:[]};
+  DAYS.forEach(function(d,idx){
+    var def;
+    if(d.key==='sun') def=model.sunday;
+    else if(d.key==='sat') def=(model.saturday || model.weekday);
+    else def=model.weekday;
 
-      var usedToday={};
-      def.forEach(function(s,shiftIndex){
-        var chosenEmp=null;
-        var attempts=0;
-        while(attempts < emps.length && !chosenEmp){
-          var idxEmp = (weekIndex + idx + shiftIndex + attempts) % emps.length;
-          var emp = emps[idxEmp];
-          var stForEmp = (weekStatus[emp.id] && weekStatus[emp.id][d.key]) || '';
-          if(usedToday[emp.id]){ attempts++; continue; }
-          if(stForEmp){ attempts++; continue; }
-          chosenEmp=emp;
+    var dateStr=fDate(addDays(start,idx));
+    var dayObj={date:dateStr,shifts:[]};
+
+    var usedToday={};
+
+    def.forEach(function(s,shiftIndex){
+      var chosenEmp=null;
+      var attempts=0;
+      var shiftMin = durMin(s.start,s.end);
+
+      while(attempts < emps.length && !chosenEmp){
+        var idxEmp = (weekIndex + idx + shiftIndex + attempts) % emps.length;
+        var emp = emps[idxEmp];
+
+        var stForEmp = (weekStatus[emp.id] && weekStatus[emp.id][d.key]) || '';
+        if(usedToday[emp.id]){ attempts++; continue; }
+        if(stForEmp){ attempts++; continue; }
+
+        var empMax = (emp.max!=null && emp.max!=='' && !isNaN(emp.max)) ? parseFloat(emp.max) : 9999;
+        var empMaxMin = empMax * 60;
+
+        if((tempMinutes[emp.id] || 0) + shiftMin > empMaxMin){
+          attempts++; continue;
         }
-        dayObj.shifts.push({ role:s.label,start:s.start,end:s.end,empId: chosenEmp ? chosenEmp.id : null });
-        if(chosenEmp) usedToday[chosenEmp.id]=true;
-      });
 
-      week.days[d.key]=dayObj;
+        chosenEmp=emp;
+      }
+
+      dayObj.shifts.push({ role:s.label,start:s.start,end:s.end,empId: chosenEmp ? chosenEmp.id : null });
+
+      if(chosenEmp){
+        usedToday[chosenEmp.id]=true;
+        tempMinutes[chosenEmp.id] = (tempMinutes[chosenEmp.id] || 0) + shiftMin;
+      }
     });
 
-    schedAll[start]=week;
-    lsSet(STORAGE_SCHED,schedAll);
-    renderAdminSchedule();
-    renderEmpStats();
-    updateGenerateHint();
-  };
+    week.days[d.key]=dayObj;
+  });
 
-  function computeHours(week){
+  // Bilanciamento euristico per avvicinare i minimi e ridurre eventuali sforamenti
+  try{
+    balanceWeekHours(week, emps, weekStatus);
+  }catch(e){
+    console.log('balanceWeekHours error', e);
+  }
+
+  schedAll[start]=week;
+  lsSet(STORAGE_SCHED,schedAll);
+  renderAdminSchedule();
+  renderEmpStats();
+  updateGenerateHint();
+};
+
+
+// Bilancia ore settimanali in modo euristico (non garantisce ottimo) rispettando assenze e max hard quando possibile
+function balanceWeekHours(week, emps, weekStatus){
+  if(!week || !week.days) return {};
+
+  var totals = {};
+  var minMinutes = {};
+  var maxMinutes = {};
+
+  emps.forEach(function(e){
+    totals[e.id]=0;
+    var mn = (e.min!=null && e.min!=='' && !isNaN(e.min)) ? parseFloat(e.min) : 0;
+    var mx = (e.max!=null && e.max!=='' && !isNaN(e.max)) ? parseFloat(e.max) : 9999;
+    minMinutes[e.id]=mn*60;
+    maxMinutes[e.id]=mx*60;
+  });
+
+  function isUnavailable(empId, dayKey){
+    var st = (weekStatus[empId] && weekStatus[empId][dayKey]) || '';
+    return !!st;
+  }
+  function hasShiftThatDay(empId, dayKey){
+    var day = week.days[dayKey]; if(!day) return false;
+    for(var i=0;i<day.shifts.length;i++){
+      if(day.shifts[i].empId===empId) return true;
+    }
+    return false;
+  }
+
+  // calcola totali iniziali
+  DAYS.forEach(function(d){
+    var day = week.days[d.key];
+    if(!day) return;
+    day.shifts.forEach(function(s){
+      if(s.empId){
+        totals[s.empId] += durMin(s.start,s.end);
+      }
+    });
+  });
+
+  function tryReassignShift(dayKey, shiftIdx){
+    var day = week.days[dayKey];
+    if(!day) return false;
+    var shift = day.shifts[shiftIdx];
+    if(!shift || !shift.empId) return false;
+
+    var fromId = shift.empId;
+    var shiftMin = durMin(shift.start, shift.end);
+
+    var candidates = emps.filter(function(emp){
+      if(emp.id===fromId) return false;
+      if(isUnavailable(emp.id, dayKey)) return false;
+      if(hasShiftThatDay(emp.id, dayKey)) return false;
+      return (totals[emp.id] + shiftMin) <= maxMinutes[emp.id];
+    });
+
+    candidates.sort(function(a,b){
+      var aNeed = Math.max(0, minMinutes[a.id] - totals[a.id]);
+      var bNeed = Math.max(0, minMinutes[b.id] - totals[b.id]);
+      if(aNeed !== bNeed) return bNeed - aNeed;
+      return totals[a.id] - totals[b.id];
+    });
+
+    if(candidates.length===0) return false;
+
+    var to = candidates[0];
+    shift.empId = to.id;
+    totals[fromId] -= shiftMin;
+    totals[to.id] += shiftMin;
+    return true;
+  }
+
+  // Pass 1: riduci over-max
+  var changed = true;
+  var guard = 0;
+  while(changed && guard < 200){
+    changed = false; guard++;
+    for(var ei=0; ei<emps.length; ei++){
+      var e = emps[ei];
+      if(totals[e.id] > maxMinutes[e.id]){
+        for(var di=0; di<DAYS.length; di++){
+          var dk = DAYS[di].key;
+          var day = week.days[dk];
+          if(!day) continue;
+          for(var si=0; si<day.shifts.length; si++){
+            if(day.shifts[si].empId === e.id){
+              if(tryReassignShift(dk, si)){
+                changed = true;
+                break;
+              }
+            }
+          }
+          if(changed) break;
+        }
+      }
+    }
+  }
+
+  // Pass 2: aumenta under-min spostando turni da chi ha "slack"
+  changed = true;
+  guard = 0;
+  while(changed && guard < 300){
+    changed = false; guard++;
+
+    var under = emps.map(function(e){
+      return { e:e, deficit: Math.max(0, minMinutes[e.id] - totals[e.id]) };
+    }).filter(function(x){ return x.deficit > 0; })
+      .sort(function(a,b){ return b.deficit - a.deficit; });
+
+    if(under.length===0) break;
+
+    var targetEmp = under[0].e;
+    var took = false;
+
+    for(var di=0; di<DAYS.length && !took; di++){
+      var dk = DAYS[di].key;
+      if(isUnavailable(targetEmp.id, dk)) continue;
+      if(hasShiftThatDay(targetEmp.id, dk)) continue;
+
+      var day = week.days[dk];
+      if(!day) continue;
+
+      for(var si=0; si<day.shifts.length; si++){
+        var sh = day.shifts[si];
+        var fromId = sh.empId;
+        if(!fromId || fromId === targetEmp.id) continue;
+
+        var shMin = durMin(sh.start, sh.end);
+
+        if(totals[targetEmp.id] + shMin > maxMinutes[targetEmp.id]) continue;
+
+        var donorMin = minMinutes[fromId] || 0;
+        if(totals[fromId] - shMin < donorMin) continue;
+
+        // ok swap
+        sh.empId = targetEmp.id;
+        totals[fromId] -= shMin;
+        totals[targetEmp.id] += shMin;
+        changed = true;
+        took = true;
+        break;
+      }
+    }
+  }
+
+  return totals;
+}
+
+
+function computeHours(week){
     var totals={};
     DAYS.forEach(function(d){
       var day=week.days[d.key];
