@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8">
-  <title>Bottega del Caffè - Turni (v16-hf1)</title>
+  <title>Bottega del Caffè - Turni (v16-hf2-hf2)</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <style>
     *{box-sizing:border-box;margin:0;padding:0;}
@@ -1325,6 +1325,8 @@
   // GENERA TURNI con controllo riposi target
   
 // GENERA TURNI con controllo riposi target + rispetto ore min/max (heuristic)
+
+// GENERA TURNI con controllo riposi target + rispetto ore min/max + assegnazione intelligente anti-buchi
 document.getElementById('genBtn').onclick=function(){
   var start=document.getElementById('weekStart').value;
   if(!start){alert('Seleziona la data di inizio settimana');return;}
@@ -1355,13 +1357,37 @@ document.getElementById('genBtn').onclick=function(){
 
   // minuti assegnati nella settimana in generazione
   var tempMinutes = {};
-  emps.forEach(function(e){ tempMinutes[e.id]=0; });
+  var minMinutes = {};
+  var maxMinutes = {};
+  emps.forEach(function(e){
+    tempMinutes[e.id]=0;
+    var mn = (e.min!=null && e.min!=='' && !isNaN(e.min)) ? parseFloat(e.min) : 0;
+    var mx = (e.max!=null && e.max!=='' && !isNaN(e.max)) ? parseFloat(e.max) : 9999;
+    minMinutes[e.id]=mn*60;
+    maxMinutes[e.id]=mx*60;
+  });
+
+  function getDefForDay(dayKey){
+    if(dayKey==='sun') return model.sunday;
+    if(dayKey==='sat') return (model.saturday || model.weekday);
+    return model.weekday;
+  }
+
+  function isUnavailable(empId, dayKey){
+    var stForEmp = (weekStatus[empId] && weekStatus[empId][dayKey]) || '';
+    return !!stForEmp;
+  }
+
+  function scoreEmp(emp, shiftMin){
+    var assigned = tempMinutes[emp.id] || 0;
+    var deficit = Math.max(0, (minMinutes[emp.id] || 0) - assigned);
+    var slack = (maxMinutes[emp.id] || 999999) - assigned;
+    // più deficit = priorità alta; meno assegnato = priorità alta
+    return (deficit * 2) + (slack * 0.05) - (assigned * 0.1);
+  }
 
   DAYS.forEach(function(d,idx){
-    var def;
-    if(d.key==='sun') def=model.sunday;
-    else if(d.key==='sat') def=(model.saturday || model.weekday);
-    else def=model.weekday;
+    var def = getDefForDay(d.key);
 
     var dateStr=fDate(addDays(start,idx));
     var dayObj={date:dateStr,shifts:[]};
@@ -1369,26 +1395,64 @@ document.getElementById('genBtn').onclick=function(){
     var usedToday={};
 
     def.forEach(function(s,shiftIndex){
-      var chosenEmp=null;
-      var attempts=0;
       var shiftMin = durMin(s.start,s.end);
 
-      while(attempts < emps.length && !chosenEmp){
-        var idxEmp = (weekIndex + idx + shiftIndex + attempts) % emps.length;
-        var emp = emps[idxEmp];
+      // candidati base: disponibili e non già usati oggi
+      var candidates = emps.filter(function(emp){
+        if(usedToday[emp.id]) return false;
+        if(isUnavailable(emp.id, d.key)) return false;
+        return true;
+      });
 
-        var stForEmp = (weekStatus[emp.id] && weekStatus[emp.id][d.key]) || '';
-        if(usedToday[emp.id]){ attempts++; continue; }
-        if(stForEmp){ attempts++; continue; }
+      // 1) prova a rispettare max (hard)
+      var hard = candidates.filter(function(emp){
+        return (tempMinutes[emp.id] + shiftMin) <= (maxMinutes[emp.id] || 999999);
+      });
 
-        var empMax = (emp.max!=null && emp.max!=='' && !isNaN(emp.max)) ? parseFloat(emp.max) : 9999;
-        var empMaxMin = empMax * 60;
+      // ordina candidati per punteggio
+      function sortByScore(list){
+        list.sort(function(a,b){
+          var sa = scoreEmp(a, shiftMin);
+          var sb = scoreEmp(b, shiftMin);
+          if(sa !== sb) return sb - sa;
+          // tie-breaker rotazione deterministica
+          var aRot = (weekIndex + idx + shiftIndex + emps.indexOf(a)) % emps.length;
+          var bRot = (weekIndex + idx + shiftIndex + emps.indexOf(b)) % emps.length;
+          return aRot - bRot;
+        });
+        return list;
+      }
 
-        if((tempMinutes[emp.id] || 0) + shiftMin > empMaxMin){
-          attempts++; continue;
+      var chosenEmp = null;
+
+      if(hard.length > 0){
+        sortByScore(hard);
+        chosenEmp = hard[0];
+      } else if(candidates.length > 0){
+        // 2) fallback: supera max il meno possibile (per evitare buchi)
+        candidates.sort(function(a,b){
+          var overA = Math.max(0, (tempMinutes[a.id] + shiftMin) - (maxMinutes[a.id] || 999999));
+          var overB = Math.max(0, (tempMinutes[b.id] + shiftMin) - (maxMinutes[b.id] || 999999));
+          if(overA !== overB) return overA - overB;
+          var sa = scoreEmp(a, shiftMin);
+          var sb = scoreEmp(b, shiftMin);
+          return sb - sa;
+        });
+        chosenEmp = candidates[0];
+      } else {
+        // 3) ultima risorsa: consenti doppio turno stesso giorno se serve copertura
+        var emergency = emps.filter(function(emp){
+          if(isUnavailable(emp.id, d.key)) return false;
+          return true;
+        });
+        if(emergency.length > 0){
+          emergency.sort(function(a,b){
+            var sa = scoreEmp(a, shiftMin);
+            var sb = scoreEmp(b, shiftMin);
+            return sb - sa;
+          });
+          chosenEmp = emergency[0];
         }
-
-        chosenEmp=emp;
       }
 
       dayObj.shifts.push({ role:s.label,start:s.start,end:s.end,empId: chosenEmp ? chosenEmp.id : null });
@@ -1416,8 +1480,6 @@ document.getElementById('genBtn').onclick=function(){
   updateGenerateHint();
 };
 
-
-// Bilancia ore settimanali in modo euristico (non garantisce ottimo) rispettando assenze e max hard quando possibile
 function balanceWeekHours(week, emps, weekStatus){
   if(!week || !week.days) return {};
 
