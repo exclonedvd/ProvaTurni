@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8">
-  <title>Bottega del Caffè - Turni (v16-hf2-hf2)</title>
+  <title>Bottega del Caffè - Turni (v16-hf2e-hf2)</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <style>
     *{box-sizing:border-box;margin:0;padding:0;}
@@ -1327,6 +1327,7 @@
 // GENERA TURNI con controllo riposi target + rispetto ore min/max (heuristic)
 
 // GENERA TURNI con controllo riposi target + rispetto ore min/max + assegnazione intelligente anti-buchi
+
 document.getElementById('genBtn').onclick=function(){
   var start=document.getElementById('weekStart').value;
   if(!start){alert('Seleziona la data di inizio settimana');return;}
@@ -1349,6 +1350,27 @@ document.getElementById('genBtn').onclick=function(){
     return;
   }
 
+  // Storico fasce (mattina/pomeriggio) - leggero supporto
+  function computeBucketHistoryLocal(){
+    var schedAll = lsGet(STORAGE_SCHED, {});
+    var res = { morning:{}, afternoon:{} };
+    Object.keys(schedAll).forEach(function(weekStart){
+      var week = schedAll[weekStart];
+      if(!week || !week.days) return;
+      DAYS.forEach(function(d){
+        var day = week.days[d.key];
+        if(!day || !day.shifts) return;
+        day.shifts.forEach(function(s){
+          if(!s.empId) return;
+          var bucket = isMorning(s.start) ? 'morning' : 'afternoon';
+          res[bucket][s.empId] = (res[bucket][s.empId] || 0) + 1;
+        });
+      });
+    });
+    return res;
+  }
+  var histBucket = computeBucketHistoryLocal();
+
   var schedAll=lsGet(STORAGE_SCHED,{});
   var weeks = Object.keys(schedAll);
   var weekIndex = weeks.length;
@@ -1359,13 +1381,38 @@ document.getElementById('genBtn').onclick=function(){
   var tempMinutes = {};
   var minMinutes = {};
   var maxMinutes = {};
+
+  // conteggio fasce nella settimana in generazione
+  var tempBucket = {};
+
   emps.forEach(function(e){
     tempMinutes[e.id]=0;
+    tempBucket[e.id] = { morning:0, afternoon:0 };
+
     var mn = (e.min!=null && e.min!=='' && !isNaN(e.min)) ? parseFloat(e.min) : 0;
     var mx = (e.max!=null && e.max!=='' && !isNaN(e.max)) ? parseFloat(e.max) : 9999;
     minMinutes[e.id]=mn*60;
     maxMinutes[e.id]=mx*60;
   });
+
+// Quota fasce settimanali attese per ogni dipendente in base ai giorni NON di riposo/ferie/malattia
+// Esempi:
+// 1 riposo => 6 giorni lavorabili => 3 mattine + 3 pomeriggi
+// 2 riposi => 5 giorni lavorabili => 2 + 3
+// 4 riposi => 3 giorni lavorabili => 1 + 2
+var bucketQuota = {};
+emps.forEach(function(e){
+  var availableDays = 0;
+  DAYS.forEach(function(d){
+    var st = (weekStatus[e.id] && weekStatus[e.id][d.key]) || '';
+    if(!st) availableDays++;
+  });
+  var mornQ = Math.floor(availableDays / 2);
+  var aftQ  = availableDays - mornQ;
+  bucketQuota[e.id] = { morning:mornQ, afternoon:aftQ, total:availableDays };
+});
+
+
 
   function getDefForDay(dayKey){
     if(dayKey==='sun') return model.sunday;
@@ -1378,12 +1425,48 @@ document.getElementById('genBtn').onclick=function(){
     return !!stForEmp;
   }
 
-  function scoreEmp(emp, shiftMin){
+  // Regola HARD di equilibrio fasce:
+  // non permettere che una persona vada avanti di più di 1 turno
+  // Regola HARD di equilibrio fasce:
+// 1) differenza mattina/pomeriggio nella settimana corrente max 1
+// 2) rispetto quota attesa della settimana (calcolata sui giorni disponibili)
+function bucketHardAllowed(empId, bucket){
+  var m = (tempBucket[empId] && tempBucket[empId].morning) || 0;
+  var a = (tempBucket[empId] && tempBucket[empId].afternoon) || 0;
+
+  var q = bucketQuota[empId] || { morning:999, afternoon:999, total:999 };
+
+  // Quota: se ho già raggiunto la quota di quella fascia e l'altra fascia non è ancora piena, blocco
+  if(bucket === 'morning'){
+    if(m >= q.morning && a < q.afternoon) return false;
+    // diff rule
+    return m <= a + 1;
+  } else {
+    if(a >= q.afternoon && m < q.morning) return false;
+    return a <= m + 1;
+  }
+}
+
+  // Penalità soft basata sullo storico (solo tie-break)
+  function historyPenalty(empId, bucket){
+    var hM = (histBucket.morning[empId] || 0);
+    var hA = (histBucket.afternoon[empId] || 0);
+    if(bucket === 'morning'){
+      return Math.max(0, hM - hA);
+    }
+    return Math.max(0, hA - hM);
+  }
+
+  function scoreEmp(emp, shiftMin, bucket){
     var assigned = tempMinutes[emp.id] || 0;
     var deficit = Math.max(0, (minMinutes[emp.id] || 0) - assigned);
     var slack = (maxMinutes[emp.id] || 999999) - assigned;
-    // più deficit = priorità alta; meno assegnato = priorità alta
-    return (deficit * 2) + (slack * 0.05) - (assigned * 0.1);
+
+    var histPen = historyPenalty(emp.id, bucket);
+
+    // priorità a chi è sotto al minimo
+    // penalità storica moderata
+    return (deficit * 2) + (slack * 0.05) - (assigned * 0.1) - (histPen * 10);
   }
 
   DAYS.forEach(function(d,idx){
@@ -1396,6 +1479,7 @@ document.getElementById('genBtn').onclick=function(){
 
     def.forEach(function(s,shiftIndex){
       var shiftMin = durMin(s.start,s.end);
+      var bucket = isMorning(s.start) ? 'morning' : 'afternoon';
 
       // candidati base: disponibili e non già usati oggi
       var candidates = emps.filter(function(emp){
@@ -1404,17 +1488,22 @@ document.getElementById('genBtn').onclick=function(){
         return true;
       });
 
-      // 1) prova a rispettare max (hard)
-      var hard = candidates.filter(function(emp){
+      // HARD bucket filter (prima scelta)
+      var bucketOk = candidates.filter(function(emp){
+        return bucketHardAllowed(emp.id, bucket);
+      });
+
+      // 1) prova a rispettare max (hard) + bucket hard
+      var hard = bucketOk.filter(function(emp){
         return (tempMinutes[emp.id] + shiftMin) <= (maxMinutes[emp.id] || 999999);
       });
 
-      // ordina candidati per punteggio
       function sortByScore(list){
         list.sort(function(a,b){
-          var sa = scoreEmp(a, shiftMin);
-          var sb = scoreEmp(b, shiftMin);
+          var sa = scoreEmp(a, shiftMin, bucket);
+          var sb = scoreEmp(b, shiftMin, bucket);
           if(sa !== sb) return sb - sa;
+
           // tie-breaker rotazione deterministica
           var aRot = (weekIndex + idx + shiftIndex + emps.indexOf(a)) % emps.length;
           var bRot = (weekIndex + idx + shiftIndex + emps.indexOf(b)) % emps.length;
@@ -1428,38 +1517,54 @@ document.getElementById('genBtn').onclick=function(){
       if(hard.length > 0){
         sortByScore(hard);
         chosenEmp = hard[0];
-      } else if(candidates.length > 0){
-        // 2) fallback: supera max il meno possibile (per evitare buchi)
-        candidates.sort(function(a,b){
-          var overA = Math.max(0, (tempMinutes[a.id] + shiftMin) - (maxMinutes[a.id] || 999999));
-          var overB = Math.max(0, (tempMinutes[b.id] + shiftMin) - (maxMinutes[b.id] || 999999));
-          if(overA !== overB) return overA - overB;
-          var sa = scoreEmp(a, shiftMin);
-          var sb = scoreEmp(b, shiftMin);
-          return sb - sa;
-        });
-        chosenEmp = candidates[0];
+
       } else {
-        // 3) ultima risorsa: consenti doppio turno stesso giorno se serve copertura
-        var emergency = emps.filter(function(emp){
-          if(isUnavailable(emp.id, d.key)) return false;
-          return true;
+        // 2) se nessuno passa il filtro bucket hard, usa comunque max hard
+        var hardNoBucket = candidates.filter(function(emp){
+          return (tempMinutes[emp.id] + shiftMin) <= (maxMinutes[emp.id] || 999999);
         });
-        if(emergency.length > 0){
-          emergency.sort(function(a,b){
-            var sa = scoreEmp(a, shiftMin);
-            var sb = scoreEmp(b, shiftMin);
-            return sb - sa;
+
+        if(hardNoBucket.length > 0){
+          sortByScore(hardNoBucket);
+          chosenEmp = hardNoBucket[0];
+
+        
+} else {
+          // 3) ultima risorsa: consenti doppio turno stesso giorno se serve copertura
+          //    MA senza mai superare il massimo ore settimanale
+          var emergency = emps.filter(function(emp){
+            if(isUnavailable(emp.id, d.key)) return false;
+            return (tempMinutes[emp.id] + shiftMin) <= (maxMinutes[emp.id] || 999999);
           });
-          chosenEmp = emergency[0];
+
+          if(emergency.length > 0){
+            var emergencyBucketOk = emergency.filter(function(emp){
+              return bucketHardAllowed(emp.id, bucket);
+            });
+            var listToUse = (emergencyBucketOk.length > 0) ? emergencyBucketOk : emergency;
+
+            listToUse.sort(function(a,b){
+              var sa = scoreEmp(a, shiftMin, bucket);
+              var sb = scoreEmp(b, shiftMin, bucket);
+              if(sa !== sb) return sb - sa;
+
+              var aRot = (weekIndex + idx + shiftIndex + emps.indexOf(a)) % emps.length;
+              var bRot = (weekIndex + idx + shiftIndex + emps.indexOf(b)) % emps.length;
+              return aRot - bRot;
+            });
+
+            chosenEmp = listToUse[0];
+          }
         }
+
       }
 
-      dayObj.shifts.push({ role:s.label,start:s.start,end:s.end,empId: chosenEmp ? chosenEmp.id : null });
+dayObj.shifts.push({ role:s.label,start:s.start,end:s.end,empId: chosenEmp ? chosenEmp.id : null });
 
       if(chosenEmp){
         usedToday[chosenEmp.id]=true;
         tempMinutes[chosenEmp.id] = (tempMinutes[chosenEmp.id] || 0) + shiftMin;
+        tempBucket[chosenEmp.id][bucket] = (tempBucket[chosenEmp.id][bucket] || 0) + 1;
       }
     });
 
@@ -1473,12 +1578,28 @@ document.getElementById('genBtn').onclick=function(){
     console.log('balanceWeekHours error', e);
   }
 
+
+// Avviso se ci sono turni rimasti vuoti (di solito per vincoli troppo stretti)
+var emptyCount = 0;
+DAYS.forEach(function(d){
+  var day = week.days[d.key];
+  if(!day || !day.shifts) return;
+  day.shifts.forEach(function(s){
+    if(!s.empId) emptyCount++;
+  });
+});
+if(emptyCount > 0){
+  alert('Attenzione: ' + emptyCount + ' turno/i non assegnato/i.\n' +
+        'Questo succede quando i vincoli (max ore, assenze, riposi) rendono impossibile coprire tutto senza sforare.');
+}
+
   schedAll[start]=week;
   lsSet(STORAGE_SCHED,schedAll);
   renderAdminSchedule();
   renderEmpStats();
   updateGenerateHint();
 };
+
 
 function balanceWeekHours(week, emps, weekStatus){
   if(!week || !week.days) return {};
