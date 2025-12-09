@@ -1,0 +1,1148 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <title>Bottega del Caffè - Turni (v7)</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;}
+    :root{
+      --bg:#f3e2c0;--bg-card:#f9e9c7;--accent:#c48a3b;
+      --text:#4b2a0b;--text-soft:#7a5430;--border:#d2b58a;
+      --radius-lg:18px;--radius-md:12px;
+      --shadow:0 3px 10px rgba(75,42,11,.2);
+      --font-sans:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    }
+    html,body{height:100%;}
+    body{
+      font-family:var(--font-sans);
+      background:radial-gradient(circle at top,#f9e9c7 0,#f3e2c0 40%,#e2c89a 100%);
+      color:var(--text);
+      display:flex;justify-content:center;align-items:stretch;
+      padding:10px;
+    }
+    .app{width:100%;max-width:800px;background:rgba(248,236,210,.96);border-radius:24px;
+      box-shadow:0 10px 40px rgba(75,42,11,.45);display:flex;flex-direction:column;overflow:hidden;}
+    header,footer{padding:10px 14px;border-bottom:1px solid var(--border);background:linear-gradient(135deg,#f9e9c7,#f3e2c0);}
+    footer{border-top:1px solid var(--border);border-bottom:none;font-size:.7rem;display:flex;justify-content:center;gap:6px;}
+    .main{flex:1;overflow-y:auto;padding:10px 12px;}
+    .logo-row{display:flex;align-items:center;justify-content:space-between;}
+    .logo-box{display:flex;align-items:center;gap:8px;}
+    .logo-box img{width:50px;height:50px;border-radius:50%;}
+    .logo-title{font-weight:700;}
+    button{cursor:pointer;border:none;}
+    .btn{padding:9px 14px;border-radius:999px;font-size:.9rem;}
+    .btn-primary{background:linear-gradient(135deg,#c48a3b,#7b4a1a);color:#fff;border:1px solid #7b4a1a;box-shadow:0 4px 10px rgba(75,42,11,.4);}
+    .btn-outline{background:transparent;border-radius:999px;border:1px solid var(--border);font-size:.8rem;padding:4px 10px;}
+    .btn-ghost{background:rgba(255,255,255,.4);border-radius:999px;border:1px solid rgba(75,42,11,.2);font-size:.8rem;padding:5px 10px;}
+    .card{background:var(--bg-card);border-radius:var(--radius-lg);padding:12px 14px;margin-bottom:10px;
+      box-shadow:var(--shadow);border:1px solid #e5cc9d;}
+    .title{font-weight:700;margin-bottom:8px;}
+    label{display:block;font-size:.8rem;margin-bottom:3px;color:var(--text-soft);}
+    input,select,textarea{width:100%;padding:8px 9px;border-radius:var(--radius-md);border:1px solid var(--border);background:#fff4dd;font-size:.9rem;}
+    textarea{resize:vertical;min-height:60px;}
+    .tabs{display:flex;background:#f0dec1;border-radius:999px;padding:3px;margin-bottom:10px;}
+    .tab-btn{flex:1;border-radius:999px;border:none;background:transparent;padding:7px 0;font-size:.85rem;}
+    .tab-btn.active{background:#fff;border-radius:999px;font-weight:700;box-shadow:var(--shadow);}
+    .hidden{display:none!important;}
+    .list-item{background:#fff4dd;border-radius:var(--radius-md);border:1px solid #e1c89e;padding:7px 9px;margin-bottom:6px;
+      display:flex;justify-content:space-between;align-items:center;font-size:.8rem;}
+    .day-card{background:#fff8e7;border-radius:var(--radius-md);border:1px solid #e3c89e;padding:8px 9px;margin-bottom:6px;}
+    .day-head{display:flex;justify-content:space-between;font-size:.8rem;margin-bottom:3px;}
+    .shift-row{display:flex;justify-content:space-between;font-size:.78rem;padding:2px 0;gap:6px;align-items:center;}
+    .shift-empty{color:#b33939;}
+    .shift-emp-select{max-width:150px;}
+    .hours-summary{margin-top:6px;border-top:1px dashed #d1b98f;padding-top:6px;font-size:.78rem;}
+    .hours-summary div{display:flex;justify-content:space-between;margin-bottom:2px;}
+    .print-wrapper-title{
+      text-align:center;
+      font-weight:700;
+      margin-bottom:6px;
+      font-size:1rem;
+      text-transform:uppercase;
+      letter-spacing:.06em;
+    }
+    .print-header{
+      border:1px solid #d2b58a;
+      border-radius:12px;
+      padding:6px 8px;
+      margin-bottom:8px;
+      background:#fff8e7;
+      font-size:.78rem;
+    }
+    .print-header-row{display:flex;justify-content:space-between;margin-bottom:3px;}
+    .print-header-row span.label{font-weight:700;}
+    .model-grid{
+      display:grid;
+      grid-template-columns:1fr;
+      gap:6px;
+      margin-top:6px;
+      font-size:.78rem;
+    }
+    .model-grid table{width:100%;border-collapse:collapse;font-size:.75rem;}
+    .model-grid th,.model-grid td{border:1px solid #d2b58a;padding:3px 4px;text-align:center;}
+    .model-grid th{background:#f3e2c0;}
+    @media (min-width:700px){
+      .model-grid{grid-template-columns:repeat(2,1fr);}
+    }
+    .weekoff-row{margin-bottom:6px;font-size:.78rem;}
+    .weekoff-name{font-weight:600;margin-bottom:2px;}
+    .weekoff-days{display:flex;flex-wrap:wrap;gap:4px;font-size:.7rem;}
+    .weekoff-days select{
+      border-radius:999px;
+      padding:3px 6px;
+      border:1px solid #e1c89e;
+      background:#fff4dd;
+      font-size:.7rem;
+    }
+    .weekoff-days label{font-size:.7rem;}
+
+    /* STATS TABLE */
+    .stats-table{width:100%;border-collapse:collapse;font-size:.78rem;margin-top:4px;}
+    .stats-table th,.stats-table td{border:1px solid #d2b58a;padding:3px 4px;text-align:center;}
+    .stats-table th{background:#f3e2c0;}
+
+    /* PRINT TABLE LAYOUT */
+    .print-table-wrapper{
+      margin-top:6px;
+      font-size:.75rem;
+    }
+    table.print-table{
+      width:100%;
+      border-collapse:collapse;
+      font-size:.72rem;
+    }
+    table.print-table th,
+    table.print-table td{
+      border:1px solid #999;
+      padding:3px 4px;
+      text-align:left;
+    }
+    table.print-table th{
+      background:#f1f1f1;
+      font-weight:600;
+    }
+    .print-summary-title{
+      margin-top:6px;
+      font-weight:600;
+      font-size:.78rem;
+    }
+    .print-sign{
+      margin-top:10px;
+      font-size:.75rem;
+      display:flex;
+      justify-content:space-between;
+      gap:12px;
+    }
+    .print-sign div{
+      border-top:1px solid #999;
+      padding-top:3px;
+      flex:1;
+    }
+
+    /* PRINT */
+    @media print{
+      body{background:#fff;padding:0;font-size:10px;}
+      .app{box-shadow:none;border-radius:0;width:100%;max-width:none;}
+      header,footer{background:#fff;border-color:#ccc;}
+      #loginView,#empPanel,#logoutBtn{display:none!important;}
+      .main{padding:12px;}
+      .card{box-shadow:none;border-radius:0;margin-bottom:4px;border:none;}
+      #adminPanel > .card:first-child,
+      #adminPanel > .card:nth-child(2),
+      #adminPanel > .card:nth-child(3),
+      #adminPanel > .card:nth-child(4){display:none!important;}
+      #printBtn{display:none!important;}
+      .day-card{display:none!important;} /* nascondo le card a blocchi, uso solo tabella */
+      .hours-summary{display:none!important;}
+      textarea{border:none;background:transparent;}
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="logo-row">
+      <div class="logo-box">
+        <img src="assets/logo.png" alt="logo">
+        <div>
+          <div class="logo-title">Bottega del Caffè</div>
+          <div style="font-size:.7rem;color:var(--text-soft);">Gestione turni</div>
+        </div>
+      </div>
+      <button id="logoutBtn" class="btn-ghost hidden">Esci</button>
+    </div>
+  </header>
+
+  <div class="main">
+    <!-- LOGIN -->
+    <div id="loginView" class="card">
+      <div class="title">Accedi</div>
+      <div class="tabs">
+        <button class="tab-btn active" data-target="tabAdmin">Admin</button>
+        <button class="tab-btn" data-target="tabEmp">Dipendente</button>
+      </div>
+      <div id="tabAdmin">
+        <label for="adminPassword">Password admin</label>
+        <input id="adminPassword" type="password" placeholder="admin">
+        <button id="adminLoginBtn" class="btn btn-primary" style="margin-top:8px;width:100%;">Entra come admin</button>
+        <div style="font-size:.75rem;margin-top:4px;color:var(--text-soft);">Default: <b>admin</b></div>
+      </div>
+      <div id="tabEmp" class="hidden">
+        <label for="empSelectLogin">Dipendente</label>
+        <select id="empSelectLogin"></select>
+        <label for="empPinLogin" style="margin-top:6px;">PIN</label>
+        <input id="empPinLogin" type="password">
+        <button id="empLoginBtn" class="btn btn-primary" style="margin-top:8px;width:100%;">Entra</button>
+      </div>
+    </div>
+
+    <!-- ADMIN -->
+    <div id="adminPanel" class="hidden">
+      <div class="card">
+        <div class="title">Dipendenti</div>
+        <div style="font-size:.75rem;margin-bottom:6px;">PIN di default: 1234</div>
+        <label>Nome</label>
+        <input id="empName">
+        <label style="margin-top:6px;">Ore min settimanali</label>
+        <input id="empMin" type="number" value="0">
+        <label style="margin-top:6px;">Ore max settimanali</label>
+        <input id="empMax" type="number" value="40">
+        <label style="margin-top:6px;">Ferie annuali (giorni)</label>
+        <input id="empVacTot" type="number" value="26">
+        <label style="margin-top:6px;">PIN</label>
+        <input id="empPin" value="1234">
+        <button id="addEmpBtn" class="btn btn-primary" style="margin-top:8px;width:100%;">Aggiungi / aggiorna</button>
+      </div>
+
+      <div class="card">
+        <div class="title">Elenco dipendenti</div>
+        <div id="empList"></div>
+      </div>
+
+      <!-- MODELLI TURNI -->
+      <div class="card">
+        <div class="title">Modelli turni</div>
+        <label for="modelEditSelect">Seleziona modello</label>
+        <select id="modelEditSelect"></select>
+        <button id="newModelBtn" class="btn btn-outline" style="margin-top:6px;">Nuovo modello</button>
+
+        <label style="margin-top:8px;">Nome modello</label>
+        <input id="modelName">
+
+        <div class="model-grid">
+          <div>
+            <div style="font-weight:700;font-size:.8rem;margin:4px 0;">Giorni feriali (Lun-Sab)</div>
+            <table>
+              <thead><tr><th>Persona</th><th>Inizio</th><th>Fine</th></tr></thead>
+              <tbody>
+                <tr><td>Persona 1</td><td><input id="wd1Start" type="time"></td><td><input id="wd1End" type="time"></td></tr>
+                <tr><td>Persona 2</td><td><input id="wd2Start" type="time"></td><td><input id="wd2End" type="time"></td></tr>
+                <tr><td>Persona 3</td><td><input id="wd3Start" type="time"></td><td><input id="wd3End" type="time"></td></tr>
+                <tr><td>Persona 4</td><td><input id="wd4Start" type="time"></td><td><input id="wd4End" type="time"></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div>
+            <div style="font-weight:700;font-size:.8rem;margin:4px 0;">Domenica / Festivi</div>
+            <table>
+              <thead><tr><th>Persona</th><th>Inizio</th><th>Fine</th></tr></thead>
+              <tbody>
+                <tr><td>Persona 1</td><td><input id="su1Start" type="time"></td><td><input id="su1End" type="time"></td></tr>
+                <tr><td>Persona 2</td><td><input id="su2Start" type="time"></td><td><input id="su2End" type="time"></td></tr>
+                <tr><td>Persona 3</td><td><input id="su3Start" type="time"></td><td><input id="su3End" type="time"></td></tr>
+                <tr><td>Persona 4</td><td><input id="su4Start" type="time"></td><td><input id="su4End" type="time"></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:6px;margin-top:8px;">
+          <button id="saveModelBtn" class="btn btn-primary" style="flex:1;">Salva modello</button>
+          <button id="deleteModelBtn" class="btn btn-outline" style="flex:1;">Elimina modello</button>
+        </div>
+      </div>
+
+      <!-- GIORNI LIBERI / FERIE / MALATTIA -->
+      <div class="card">
+        <div class="title">Giorni liberi / ferie / malattia (settimana)</div>
+        <div style="font-size:.75rem;margin-bottom:4px;">
+          Riguarda la settimana che inizia il: <span id="weekOffLabel">-</span>
+        </div>
+        <div id="weekOffContainer"></div>
+      </div>
+
+      <div class="card">
+        <div class="title">Genera turni</div>
+        <label>Settimana che inizia il (lunedì)</label>
+        <input id="weekStart" type="date">
+        <label style="margin-top:6px;">Modello</label>
+        <select id="modelSelect"></select>
+        <button id="genBtn" class="btn btn-primary" style="margin-top:8px;width:100%;">Genera settimana</button>
+      </div>
+
+      <div class="card" id="printArea">
+        <div class="print-wrapper-title">PIANO TURNI SETTIMANALE</div>
+        <div class="print-header">
+          <div class="print-header-row">
+            <span class="label">Settimana</span>
+            <span id="phWeekRange">-</span>
+          </div>
+          <div class="print-header-row">
+            <span class="label">Modello</span>
+            <span id="phModelName">-</span>
+          </div>
+          <div class="print-header-row">
+            <span class="label">Punto vendita</span>
+            <span>Bottega del Caffè</span>
+          </div>
+        </div>
+
+        <button id="printBtn" class="btn btn-outline" style="margin-bottom:6px;">Esporta / stampa PDF</button>
+
+        <label for="weekNotes">Note / comunicazioni interne</label>
+        <textarea id="weekNotes" placeholder="Es. ferie, permessi, variazioni straordinarie..."></textarea>
+
+        <!-- Vista 'a card' per uso a schermo -->
+        <div id="schedAdmin" style="margin-top:8px;"></div>
+        <div id="hoursSummary" class="hours-summary"></div>
+
+        <!-- Vista tabellare elegante per PDF -->
+        <div class="print-table-wrapper">
+          <table id="printTable" class="print-table"></table>
+          <div class="print-summary-title">Riepilogo ore per dipendente</div>
+          <table id="printSummaryTable" class="print-table"></table>
+          <div class="print-sign">
+            <div>Responsabile turno</div>
+            <div>Firma dipendente</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- STATISTICHE DIPENDENTI -->
+      <div class="card">
+        <div class="title">Situazione dipendenti (storico)</div>
+        <div style="font-size:.75rem;margin-bottom:4px;">Riepilogo su tutti i turni generati.</div>
+        <div id="empStats"></div>
+      </div>
+    </div>
+
+    <!-- EMPLOYEE -->
+    <div id="empPanel" class="hidden">
+      <div class="card">
+        <div class="title">I miei turni</div>
+        <label>Settimana che inizia il (lunedì)</label>
+        <input id="empWeekStart" type="date">
+        <button id="empLoadBtn" class="btn btn-primary" style="margin-top:8px;width:100%;">Mostra</button>
+      </div>
+      <div class="card">
+        <div class="title">Turni</div>
+        <div id="empWeekTotal" style="font-size:.8rem;color:var(--text-soft);margin-bottom:4px;"></div>
+        <div id="schedEmp"></div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <span>&copy; <span id="yearSpan"></span> Bottega del Caffè</span>
+  </footer>
+</div>
+
+<script>
+  // Storage keys
+  var STORAGE_EMP = 'bdc_emps_v7';
+  var STORAGE_SCHED = 'bdc_sched_v7';
+  var STORAGE_MODELS = 'bdc_models_v4';
+  var STORAGE_DAY_STATUS = 'bdc_day_status_v1'; // {weekStart:{empId:{dayKey:'riposo'|'ferie'|'malattia'}}}
+  var adminPassword = 'admin';
+
+  var DAYS = [
+    { key:'mon', label:'Lunedì' },
+    { key:'tue', label:'Martedì' },
+    { key:'wed', label:'Mercoledì' },
+    { key:'thu', label:'Giovedì' },
+    { key:'fri', label:'Venerdì' },
+    { key:'sat', label:'Sabato' },
+    { key:'sun', label:'Domenica' }
+  ];
+
+  // Default models if none saved
+  function defaultModels(){
+    return {
+      "1": {
+        id:"1",
+        name: "Modello 1 (P4 14-19)",
+        weekday: [
+          { label:'Persona 1', start:'07:00', end:'14:00' },
+          { label:'Persona 2', start:'09:00', end:'14:00' },
+          { label:'Persona 3', start:'14:00', end:'20:30' },
+          { label:'Persona 4', start:'14:00', end:'19:00' }
+        ],
+        sunday: [
+          { label:'Persona 1', start:'07:30', end:'14:00' },
+          { label:'Persona 2', start:'09:00', end:'14:00' },
+          { label:'Persona 3', start:'14:00', end:'20:00' },
+          { label:'Persona 4', start:'14:00', end:'20:00' }
+        ]
+      },
+      "2": {
+        id:"2",
+        name: "Modello 2 (P4 15-19)",
+        weekday: [
+          { label:'Persona 1', start:'07:00', end:'14:00' },
+          { label:'Persona 2', start:'09:00', end:'14:00' },
+          { label:'Persona 3', start:'14:00', end:'20:30' },
+          { label:'Persona 4', start:'15:00', end:'19:00' }
+        ],
+        sunday: [
+          { label:'Persona 1', start:'07:30', end:'14:00' },
+          { label:'Persona 2', start:'09:00', end:'14:00' },
+          { label:'Persona 3', start:'14:00', end:'20:00' },
+          { label:'Persona 4', start:'14:00', end:'20:00' }
+        ]
+      }
+    };
+  }
+
+  function lsGet(key, fallback){
+    try{ var v = localStorage.getItem(key); return v?JSON.parse(v):fallback; }
+    catch(e){ console.log(e); return fallback; }
+  }
+  function lsSet(key,val){ localStorage.setItem(key, JSON.stringify(val)); }
+
+  function uid(){ return 'm'+Math.random().toString(36).slice(2,9); }
+  function dMonday(){
+    var d=new Date(); var day=d.getDay(); var diff=(day===0?-6:1)-day; d.setDate(d.getDate()+diff); d.setHours(0,0,0,0); return d;
+  }
+  function fDate(d){ return d.toISOString().split('T')[0]; }
+  function addDays(dateStr,n){ var d=new Date(dateStr); d.setDate(d.getDate()+n); return d; }
+  function durMin(h1,h2){
+    var p1=h1.split(':'),p2=h2.split(':');
+    return (parseInt(p2[0])*60+parseInt(p2[1]))-(parseInt(p1[0])*60+parseInt(p1[1]));
+  }
+  function isMorning(timeStr){
+    // consideriamo mattina se inizio < 12:00
+    return timeStr && timeStr < '12:00';
+  }
+
+  document.getElementById('yearSpan').textContent = new Date().getFullYear();
+
+  // TAB login
+  var tabBtns=document.querySelectorAll('.tab-btn');
+  for(var i=0;i<tabBtns.length;i++){
+    tabBtns[i].onclick=function(){
+      for(var j=0;j<tabBtns.length;j++) tabBtns[j].classList.remove('active');
+      this.classList.add('active');
+      document.getElementById('tabAdmin').classList.add('hidden');
+      document.getElementById('tabEmp').classList.add('hidden');
+      document.getElementById(this.dataset.target).classList.remove('hidden');
+    };
+  }
+
+  // logout
+  document.getElementById('logoutBtn').onclick=function(){
+    document.getElementById('loginView').classList.remove('hidden');
+    document.getElementById('adminPanel').classList.add('hidden');
+    document.getElementById('empPanel').classList.add('hidden');
+    this.classList.add('hidden');
+  };
+
+  // admin login
+  document.getElementById('adminLoginBtn').onclick=function(){
+    var pwd=document.getElementById('adminPassword').value.trim();
+    if(pwd===adminPassword){
+      document.getElementById('loginView').classList.add('hidden');
+      document.getElementById('adminPanel').classList.remove('hidden');
+      document.getElementById('logoutBtn').classList.remove('hidden');
+      initWeekInputs();
+      renderEmpList();
+      fillEmpSelectLogin();
+      initModelsUI();
+      renderWeekDayStatus();
+      renderAdminSchedule();
+      renderEmpStats();
+    } else {
+      alert('Password errata (usa "admin").');
+    }
+  };
+
+  // employee login
+  document.getElementById('empLoginBtn').onclick=function(){
+    var id=document.getElementById('empSelectLogin').value;
+    var pin=document.getElementById('empPinLogin').value.trim();
+    var emps=lsGet(STORAGE_EMP,[]);
+    var ok=false;
+    for(var i=0;i<emps.length;i++){
+      if(emps[i].id===id && emps[i].pin===pin){ ok=true; break; }
+    }
+    if(!ok){ alert('Nome o PIN errati.'); return; }
+    window._currentEmp=id;
+    document.getElementById('loginView').classList.add('hidden');
+    document.getElementById('empPanel').classList.remove('hidden');
+    document.getElementById('logoutBtn').classList.remove('hidden');
+    initWeekInputs();
+    renderEmpSchedule();
+  };
+
+  // print / pdf
+  document.getElementById('printBtn').onclick=function(){
+    window.print();
+  };
+
+  // note settimana: salvataggio on input
+  document.getElementById('weekNotes').addEventListener('input', function(){
+    var start=document.getElementById('weekStart').value;
+    if(!start) return;
+    var schedAll=lsGet(STORAGE_SCHED,{});
+    if(!schedAll[start]) return;
+    schedAll[start].notes=this.value;
+    lsSet(STORAGE_SCHED,schedAll);
+  });
+
+  // MODELS handling
+  function getModels(){
+    var models = lsGet(STORAGE_MODELS, null);
+    if(!models){
+      models = defaultModels();
+      lsSet(STORAGE_MODELS, models);
+    }
+    return models;
+  }
+  function setModels(models){
+    lsSet(STORAGE_MODELS, models);
+  }
+
+  function populateModelSelects(){
+    var models = getModels();
+    var modelEditSelect = document.getElementById('modelEditSelect');
+    var modelSelect = document.getElementById('modelSelect');
+    modelEditSelect.innerHTML = '';
+    modelSelect.innerHTML = '';
+
+    var keys = Object.keys(models);
+    if(keys.length === 0){
+      var o = document.createElement('option');
+      o.textContent = 'Nessun modello';
+      o.disabled = true;
+      o.selected = true;
+      modelEditSelect.appendChild(o);
+      var o2 = o.cloneNode(true);
+      modelSelect.appendChild(o2);
+      return;
+    }
+    keys.forEach(function(id){
+      var m = models[id];
+      var o = document.createElement('option');
+      o.value = id; o.textContent = m.name;
+      modelEditSelect.appendChild(o);
+      var o2 = document.createElement('option');
+      o2.value = id; o2.textContent = m.name;
+      modelSelect.appendChild(o2);
+    });
+  }
+
+  function loadModelIntoForm(id){
+    var models = getModels();
+    var m = models[id];
+    if(!m) return;
+    document.getElementById('modelName').value = m.name;
+    function setTime(id,val){ var el=document.getElementById(id); if(el) el.value=val; }
+
+    setTime('wd1Start', m.weekday[0].start); setTime('wd1End', m.weekday[0].end);
+    setTime('wd2Start', m.weekday[1].start); setTime('wd2End', m.weekday[1].end);
+    setTime('wd3Start', m.weekday[2].start); setTime('wd3End', m.weekday[2].end);
+    setTime('wd4Start', m.weekday[3].start); setTime('wd4End', m.weekday[3].end);
+
+    setTime('su1Start', m.sunday[0].start); setTime('su1End', m.sunday[0].end);
+    setTime('su2Start', m.sunday[1].start); setTime('su2End', m.sunday[1].end);
+    setTime('su3Start', m.sunday[2].start); setTime('su3End', m.sunday[2].end);
+    setTime('su4Start', m.sunday[3].start); setTime('su4End', m.sunday[3].end);
+  }
+
+  function initModelsUI(){
+    populateModelSelects();
+    var models = getModels();
+    var keys = Object.keys(models);
+    if(keys.length>0){
+      document.getElementById('modelEditSelect').value = keys[0];
+      document.getElementById('modelSelect').value = keys[0];
+      loadModelIntoForm(keys[0]);
+    }
+  }
+
+  document.getElementById('modelEditSelect').addEventListener('change', function(){
+    loadModelIntoForm(this.value);
+  });
+
+  document.getElementById('newModelBtn').onclick=function(){
+    var id = uid();
+    var models = getModels();
+    models[id] = {
+      id:id,
+      name:'Nuovo modello',
+      weekday:[
+        {label:'Persona 1',start:'07:00',end:'14:00'},
+        {label:'Persona 2',start:'09:00',end:'14:00'},
+        {label:'Persona 3',start:'14:00',end:'20:30'},
+        {label:'Persona 4',start:'14:00',end:'19:00'}
+      ],
+      sunday:[
+        {label:'Persona 1',start:'07:30',end:'14:00'},
+        {label:'Persona 2',start:'09:00',end:'14:00'},
+        {label:'Persona 3',start:'14:00',end:'20:00'},
+        {label:'Persona 4',start:'14:00',end:'20:00'}
+      ]
+    };
+    setModels(models);
+    populateModelSelects();
+    document.getElementById('modelEditSelect').value = id;
+    document.getElementById('modelSelect').value = id;
+    loadModelIntoForm(id);
+  };
+
+  document.getElementById('saveModelBtn').onclick=function(){
+    var models = getModels();
+    var id = document.getElementById('modelEditSelect').value;
+    if(!id || !models[id]){
+      alert('Seleziona un modello o creane uno nuovo.');
+      return;
+    }
+    var name = document.getElementById('modelName').value.trim() || 'Modello';
+    function gt(id){return document.getElementById(id).value || '00:00';}
+    models[id].name = name;
+    models[id].weekday = [
+      {label:'Persona 1',start:gt('wd1Start'),end:gt('wd1End')},
+      {label:'Persona 2',start:gt('wd2Start'),end:gt('wd2End')},
+      {label:'Persona 3',start:gt('wd3Start'),end:gt('wd3End')},
+      {label:'Persona 4',start:gt('wd4Start'),end:gt('wd4End')}
+    ];
+    models[id].sunday = [
+      {label:'Persona 1',start:gt('su1Start'),end:gt('su1End')},
+      {label:'Persona 2',start:gt('su2Start'),end:gt('su2End')},
+      {label:'Persona 3',start:gt('su3Start'),end:gt('su3End')},
+      {label:'Persona 4',start:gt('su4Start'),end:gt('su4End')}
+    ];
+    setModels(models);
+    populateModelSelects();
+    document.getElementById('modelEditSelect').value = id;
+    document.getElementById('modelSelect').value = id;
+    alert('Modello salvato.');
+  };
+
+  document.getElementById('deleteModelBtn').onclick=function(){
+    var models = getModels();
+    var id = document.getElementById('modelEditSelect').value;
+    if(!id || !models[id]) return;
+    if(Object.keys(models).length<=1){
+      alert('Deve esistere almeno un modello.');
+      return;
+    }
+    if(!confirm('Eliminare questo modello?')) return;
+    delete models[id];
+    setModels(models);
+    populateModelSelects();
+    var keys = Object.keys(models);
+    document.getElementById('modelEditSelect').value = keys[0];
+    document.getElementById('modelSelect').value = keys[0];
+    loadModelIntoForm(keys[0]);
+  };
+
+  // add / update employee
+  document.getElementById('addEmpBtn').onclick=function(){
+    var name=document.getElementById('empName').value.trim();
+    if(!name){alert('Inserisci il nome');return;}
+    var min=parseFloat(document.getElementById('empMin').value||'0');
+    var max=parseFloat(document.getElementById('empMax').value||'0');
+    var vacTot=parseFloat(document.getElementById('empVacTot').value||'0');
+    var pin=document.getElementById('empPin').value.trim()||'1234';
+    var emps=lsGet(STORAGE_EMP,[]);
+    var existing=emps.find(function(e){return e.name===name;});
+    if(existing){
+      existing.min=min;existing.max=max;existing.pin=pin;existing.vacTot=vacTot;
+    }else{
+      emps.push({id:'e'+Math.random().toString(36).slice(2,9),name:name,min:min,max:max,pin:pin,vacTot:vacTot});
+    }
+    lsSet(STORAGE_EMP,emps);
+    document.getElementById('empName').value='';
+    renderEmpList();
+    fillEmpSelectLogin();
+    renderWeekDayStatus();
+    renderEmpStats();
+  };
+
+  function renderEmpList(){
+    var list=document.getElementById('empList');
+    var emps=lsGet(STORAGE_EMP,[]);
+    if(emps.length===0){list.innerHTML='<div style="font-size:.8rem;">Nessun dipendente.</div>';return;}
+    list.innerHTML='';
+    emps.forEach(function(e){
+      var vac = (e.vacTot!=null)?e.vacTot:'-';
+      var div=document.createElement('div');
+      div.className='list-item';
+      div.innerHTML='<div>'+e.name+
+        '<br><span style="color:var(--text-soft);font-size:.75rem;">'+e.min+'-'+e.max+' h/sett • Ferie annue: '+vac+' • PIN '+e.pin+'</span></div><button class="btn-outline" data-name="'+e.name+'">X</button>';
+      list.appendChild(div);
+    });
+    Array.prototype.forEach.call(list.querySelectorAll('button'),function(btn){
+      btn.onclick=function(){
+        if(!confirm('Eliminare questo dipendente?'))return;
+        var name=this.getAttribute('data-name');
+        var emps=lsGet(STORAGE_EMP,[]).filter(function(e){return e.name!==name;});
+        lsSet(STORAGE_EMP,emps);
+        renderEmpList(); 
+        fillEmpSelectLogin();
+        renderWeekDayStatus();
+        renderEmpStats();
+      };
+    });
+  }
+
+  function fillEmpSelectLogin(){
+    var sel=document.getElementById('empSelectLogin');
+    var emps=lsGet(STORAGE_EMP,[]);
+    sel.innerHTML='';
+    if(emps.length===0){var o=document.createElement('option');o.textContent='Nessun dipendente';o.disabled=true;o.selected=true;sel.appendChild(o);return;}
+    emps.forEach(function(e){
+      var o=document.createElement('option');o.value=e.id;o.textContent=e.name;sel.appendChild(o);
+    });
+  }
+
+  // week inputs default
+  function initWeekInputs(){
+    var m=fDate(dMonday());
+    var a=document.getElementById('weekStart'); if(a)a.value=m;
+    var b=document.getElementById('empWeekStart'); if(b)b.value=m;
+    var label=document.getElementById('weekOffLabel'); if(label) label.textContent = a ? a.value : '-';
+  }
+
+  // Week day status UI
+  function renderWeekDayStatus(){
+    var container=document.getElementById('weekOffContainer');
+    var label=document.getElementById('weekOffLabel');
+    var weekStart=document.getElementById('weekStart').value;
+    if(!container) return;
+    var emps=lsGet(STORAGE_EMP,[]);
+    if(!weekStart){
+      container.innerHTML='<div style="font-size:.8rem;">Seleziona prima una settimana.</div>';
+      if(label) label.textContent='-';
+      return;
+    }
+    if(label) label.textContent=weekStart;
+    if(emps.length===0){
+      container.innerHTML='<div style="font-size:.8rem;">Nessun dipendente.</div>';
+      return;
+    }
+    var allStatus = lsGet(STORAGE_DAY_STATUS,{});
+    var weekStatus = allStatus[weekStart] || {};
+    container.innerHTML='';
+    emps.forEach(function(e){
+      var row=document.createElement('div');
+      row.className='weekoff-row';
+      var nameDiv=document.createElement('div');
+      nameDiv.className='weekoff-name';
+      nameDiv.textContent=e.name;
+      var daysDiv=document.createElement('div');
+      daysDiv.className='weekoff-days';
+      DAYS.forEach(function(d){
+        var lbl=document.createElement('label');
+        lbl.textContent=d.label.substring(0,3)+': ';
+        var sel=document.createElement('select');
+        sel.setAttribute('data-emp',e.id);
+        sel.setAttribute('data-day',d.key);
+        var current = (weekStatus[e.id] && weekStatus[e.id][d.key]) || '';
+        ['','riposo','ferie','malattia'].forEach(function(v){
+          var o=document.createElement('option');
+          o.value=v;
+          o.textContent=(v===''?'Lavora':(v[0].toUpperCase()+v.slice(1)));
+          if(v===current) o.selected=true;
+          sel.appendChild(o);
+        });
+        sel.onchange=function(){
+          updateDayStatus(
+            weekStart,
+            this.getAttribute('data-emp'),
+            this.getAttribute('data-day'),
+            this.value
+          );
+          renderEmpStats();
+        };
+        lbl.appendChild(sel);
+        daysDiv.appendChild(lbl);
+      });
+      row.appendChild(nameDiv);
+      row.appendChild(daysDiv);
+      container.appendChild(row);
+    });
+  }
+
+  function updateDayStatus(weekStart, empId, dayKey, value){
+    var allStatus = lsGet(STORAGE_DAY_STATUS,{});
+    var weekStatus = allStatus[weekStart] || {};
+    var empStatus = weekStatus[empId] || {};
+    if(value){
+      empStatus[dayKey] = value;
+    }else{
+      delete empStatus[dayKey];
+    }
+    weekStatus[empId] = empStatus;
+    allStatus[weekStart] = weekStatus;
+    lsSet(STORAGE_DAY_STATUS, allStatus);
+  }
+
+  // change weekStart -> refresh
+  document.getElementById('weekStart').addEventListener('change', function(){
+    var label=document.getElementById('weekOffLabel');
+    if(label) label.textContent=this.value || '-';
+    renderWeekDayStatus();
+    renderAdminSchedule();
+    renderEmpStats();
+  });
+
+  // generate schedule (with rotation + weekly day status)
+  document.getElementById('genBtn').onclick=function(){
+    var start=document.getElementById('weekStart').value;
+    if(!start){alert('Seleziona la data di inizio settimana');return;}
+    var modelId=document.getElementById('modelSelect').value;
+    var models=getModels();
+    var model=models[modelId];
+    if(!model){alert('Modello non valido');return;}
+    var emps=lsGet(STORAGE_EMP,[]);
+    if(emps.length===0){alert('Nessun dipendente');return;}
+
+    var schedAll=lsGet(STORAGE_SCHED,{});
+    var weeks = Object.keys(schedAll);
+    var weekIndex = weeks.length; // per rotazione
+    var allStatus = lsGet(STORAGE_DAY_STATUS,{});
+    var weekStatus = allStatus[start] || {};
+
+    var week={days:{},modelId:modelId,notes:document.getElementById('weekNotes').value||''};
+
+    DAYS.forEach(function(d,idx){
+      var def=(d.key==='sun'?model.sunday:model.weekday);
+      var dateStr=fDate(addDays(start,idx));
+      var dayObj={date:dateStr,shifts:[]};
+
+      var usedToday={};
+      def.forEach(function(s,shiftIndex){
+        var chosenEmp=null;
+        var attempts=0;
+        while(attempts < emps.length && !chosenEmp){
+          var idxEmp = (weekIndex + idx + shiftIndex + attempts) % emps.length;
+          var emp = emps[idxEmp];
+          var stForEmp = (weekStatus[emp.id] && weekStatus[emp.id][d.key]) || '';
+          if(usedToday[emp.id]){
+            attempts++;
+            continue;
+          }
+          if(stForEmp){ // riposo / ferie / malattia => non assegnare
+            attempts++;
+            continue;
+          }
+          chosenEmp=emp;
+        }
+        dayObj.shifts.push({
+          role:s.label,
+          start:s.start,
+          end:s.end,
+          empId: chosenEmp ? chosenEmp.id : null
+        });
+        if(chosenEmp) usedToday[chosenEmp.id]=true;
+      });
+
+      week.days[d.key]=dayObj;
+    });
+
+    schedAll[start]=week;
+    lsSet(STORAGE_SCHED,schedAll);
+    renderAdminSchedule();
+    renderEmpStats();
+  };
+
+  function computeHours(week){
+    var totals={};
+    DAYS.forEach(function(d){
+      var day=week.days[d.key];
+      if(!day)return;
+      day.shifts.forEach(function(s){
+        if(!s.empId)return;
+        var m=durMin(s.start,s.end);
+        totals[s.empId]=(totals[s.empId]||0)+m;
+      });
+    });
+    return totals;
+  }
+
+  function renderAdminSchedule(){
+    var start=document.getElementById('weekStart').value;
+    var box=document.getElementById('schedAdmin');
+    var summaryBox=document.getElementById('hoursSummary');
+    var notesArea=document.getElementById('weekNotes');
+    var phWeekRange=document.getElementById('phWeekRange');
+    var phModelName=document.getElementById('phModelName');
+    var printTable=document.getElementById('printTable');
+    var printSummaryTable=document.getElementById('printSummaryTable');
+
+    var schedAll=lsGet(STORAGE_SCHED,{});
+    var week=schedAll[start];
+    if(!week){
+      box.innerHTML='<div style="font-size:.8rem;">Nessun turno per questa settimana.</div>';
+      summaryBox.innerHTML='';
+      notesArea.value='';
+      phWeekRange.textContent='-';
+      phModelName.textContent='-';
+      if(printTable) printTable.innerHTML='';
+      if(printSummaryTable) printSummaryTable.innerHTML='';
+      return;
+    }
+    var emps=lsGet(STORAGE_EMP,[]);
+    box.innerHTML='';
+    DAYS.forEach(function(d){
+      var day=week.days[d.key];
+      if(!day)return;
+      var card=document.createElement('div');card.className='day-card';
+      card.innerHTML='<div class="day-head"><span>'+d.label+'</span><span>'+day.date+'</span></div>';
+      day.shifts.forEach(function(s,idx){
+        var row=document.createElement('div');row.className='shift-row';
+        var left=document.createElement('div');
+        left.textContent = s.role+': '+s.start+'-'+s.end;
+        var right=document.createElement('div');
+
+        var sel=document.createElement('select');
+        sel.className='shift-emp-select';
+        sel.setAttribute('data-day', d.key);
+        sel.setAttribute('data-index', idx);
+        var optEmpty=document.createElement('option');
+        optEmpty.value='';optEmpty.textContent='(vuoto)';
+        sel.appendChild(optEmpty);
+        emps.forEach(function(emp){
+          var o=document.createElement('option');
+          o.value=emp.id;
+          o.textContent=emp.name;
+          if(emp.id===s.empId) o.selected=true;
+          sel.appendChild(o);
+        });
+        right.appendChild(sel);
+        row.appendChild(left);row.appendChild(right);
+        card.appendChild(row);
+      });
+      box.appendChild(card);
+    });
+
+    // change handlers per select
+    Array.prototype.forEach.call(box.querySelectorAll('.shift-emp-select'), function(sel){
+      sel.onchange=function(){
+        var dayKey=this.getAttribute('data-day');
+        var idx=parseInt(this.getAttribute('data-index'),10);
+        var val=this.value || null;
+        var schedAll=lsGet(STORAGE_SCHED,{});
+        var week=schedAll[start];
+        if(!week || !week.days[dayKey]) return;
+        week.days[dayKey].shifts[idx].empId = val;
+        schedAll[start]=week;
+        lsSet(STORAGE_SCHED,schedAll);
+        updateSummaryAndHeader();
+        buildPrintTables();
+        renderEmpStats();
+      };
+    });
+
+    function updateSummaryAndHeader(){
+      var schedAll2=lsGet(STORAGE_SCHED,{});
+      var week2=schedAll2[start];
+      if(!week2){summaryBox.innerHTML='';return;}
+      var totals=computeHours(week2);
+      var keys=Object.keys(totals);
+      if(keys.length===0){ summaryBox.innerHTML=''; }
+      else{
+        var html='';
+        keys.forEach(function(empId){
+          var e=emps.find(function(x){return x.id===empId;});
+          var name=e?e.name:'?';
+          var h=(totals[empId]/60).toFixed(1);
+          html+='<div><span>'+name+'</span><span>'+h+' h</span></div>';
+        });
+        summaryBox.innerHTML='<div style="font-weight:700;margin-bottom:3px;">Totale ore settimana</div>'+html;
+      }
+      notesArea.value = week2.notes || '';
+      var mondayDate = start;
+      var sundayDate = fDate(addDays(start,6));
+      phWeekRange.textContent = mondayDate + ' → ' + sundayDate;
+      var models=getModels();
+      var mModel = models[week2.modelId] || models[Object.keys(models)[0]];
+      phModelName.textContent = mModel ? mModel.name : '-';
+    }
+
+    function buildPrintTables(){
+      if(!printTable || !printSummaryTable) return;
+      // Tabella turni
+      var html = '<thead><tr>'+
+        '<th>Giorno</th><th>Data</th><th>Turno</th><th>Dipendente</th><th>Orario</th>'+
+        '</tr></thead><tbody>';
+      DAYS.forEach(function(d){
+        var day=week.days[d.key];
+        if(!day)return;
+        day.shifts.forEach(function(s){
+          var e=emps.find(function(x){return x.id===s.empId;});
+          var name=e?e.name:'-';
+          html+='<tr>'+
+            '<td>'+d.label+'</td>'+
+            '<td>'+day.date+'</td>'+
+            '<td>'+s.role+'</td>'+
+            '<td>'+name+'</td>'+
+            '<td>'+s.start+' - '+s.end+'</td>'+
+          '</tr>';
+        });
+      });
+      html+='</tbody>';
+      printTable.innerHTML = html;
+
+      // Tabella riepilogo ore
+      var totals = computeHours(week);
+      var keys = Object.keys(totals);
+      var html2 = '<thead><tr><th>Dipendente</th><th>Ore settimanali</th></tr></thead><tbody>';
+      keys.forEach(function(empId){
+        var e=emps.find(function(x){return x.id===empId;});
+        var name=e?e.name:'?';
+        var h=(totals[empId]/60).toFixed(1);
+        html2+='<tr><td>'+name+'</td><td>'+h+' h</td></tr>';
+      });
+      if(keys.length===0){
+        html2+='<tr><td colspan="2">Nessuna ora calcolata.</td></tr>';
+      }
+      html2+='</tbody>';
+      printSummaryTable.innerHTML = html2;
+    }
+
+    updateSummaryAndHeader();
+    buildPrintTables();
+  }
+
+  // Employee statistics (storico)
+  function computeEmployeeStats(){
+    var emps = lsGet(STORAGE_EMP,[]);
+    var schedAll = lsGet(STORAGE_SCHED,{});
+    var dayStatusAll = lsGet(STORAGE_DAY_STATUS,{});
+    var stats = {};
+    emps.forEach(function(e){
+      stats[e.id] = {morning:0,afternoon:0,ferie:0,malattia:0};
+    });
+    // turni mattina/pomeriggio
+    Object.keys(schedAll).forEach(function(weekStart){
+      var week = schedAll[weekStart];
+      if(!week) return;
+      DAYS.forEach(function(d){
+        var day = week.days[d.key];
+        if(!day) return;
+        day.shifts.forEach(function(s){
+          if(!s.empId) return;
+          if(!stats[s.empId]) return;
+          if(isMorning(s.start)) stats[s.empId].morning += 1;
+          else stats[s.empId].afternoon += 1;
+        });
+      });
+    });
+    // ferie / malattia
+    Object.keys(dayStatusAll).forEach(function(weekStart){
+      var weekStatus = dayStatusAll[weekStart] || {};
+      Object.keys(weekStatus).forEach(function(empId){
+        var perEmp = weekStatus[empId] || {};
+        Object.keys(perEmp).forEach(function(dayKey){
+          var st = perEmp[dayKey];
+          if(!stats[empId]) return;
+          if(st === 'ferie') stats[empId].ferie += 1;
+          else if(st === 'malattia') stats[empId].malattia += 1;
+        });
+      });
+    });
+    return stats;
+  }
+
+  function renderEmpStats(){
+    var container = document.getElementById('empStats');
+    var emps = lsGet(STORAGE_EMP,[]);
+    if(emps.length===0){
+      container.innerHTML = '<div style="font-size:.8rem;">Nessun dipendente.</div>';
+      return;
+    }
+    var stats = computeEmployeeStats();
+    var html = '<table class="stats-table"><thead><tr>'+
+      '<th>Nome</th><th>Turni mattina</th><th>Turni pomeriggio</th>'+
+      '<th>Ferie usate</th><th>Ferie residue</th><th>Malattia</th>'+
+      '</tr></thead><tbody>';
+    emps.forEach(function(e){
+      var st = stats[e.id] || {morning:0,afternoon:0,ferie:0,malattia:0};
+      var totFerie = e.vacTot!=null ? e.vacTot : 0;
+      var usedF = st.ferie || 0;
+      var resid = totFerie - usedF;
+      if(resid < 0) resid = 0;
+      html+='<tr>'+
+        '<td>'+e.name+'</td>'+
+        '<td>'+st.morning+'</td>'+
+        '<td>'+st.afternoon+'</td>'+
+        '<td>'+usedF+'</td>'+
+        '<td>'+resid+'</td>'+
+        '<td>'+st.malattia+'</td>'+
+      '</tr>';
+    });
+    html+='</tbody></table>';
+    container.innerHTML = html;
+  }
+
+  // employee schedule
+  document.getElementById('empLoadBtn').onclick=renderEmpSchedule;
+  function renderEmpSchedule(){
+    var start=document.getElementById('empWeekStart').value;
+    var box=document.getElementById('schedEmp');
+    var totalBox=document.getElementById('empWeekTotal');
+    var schedAll=lsGet(STORAGE_SCHED,{});
+    var week=schedAll[start];
+    var meId=window._currentEmp;
+    if(!week){
+      box.innerHTML='<div style="font-size:.8rem;">Nessun turno per questa settimana.</div>';
+      totalBox.textContent='';
+      return;
+    }
+    box.innerHTML='';
+    var myMinutes=0;
+    DAYS.forEach(function(d){
+      var day=week.days[d.key];
+      if(!day)return;
+      var my=day.shifts.filter(function(s){return s.empId===meId;});
+      var card=document.createElement('div');card.className='day-card';
+      card.innerHTML='<div class="day-head"><span>'+d.label+'</span><span>'+day.date+'</span></div>';
+      if(my.length===0){
+        var row=document.createElement('div');row.className='shift-row';
+        row.innerHTML='<div>-</div><div class="shift-empty">Riposo</div>';card.appendChild(row);
+      }else{
+        my.forEach(function(s){
+          var row=document.createElement('div');row.className='shift-row';
+          row.innerHTML='<div>'+s.start+'-'+s.end+'</div><div>'+s.role+'</div>';card.appendChild(row);
+          myMinutes+=durMin(s.start,s.end);
+        });
+      }
+      box.appendChild(card);
+    });
+    totalBox.textContent='Totale ore settimana: '+(myMinutes/60).toFixed(1)+' h';
+  }
+
+  // seed dipendenti e modelli se vuoti
+  (function(){
+    var emps=lsGet(STORAGE_EMP,[]);
+    if(emps.length===0){
+      emps=[{id:'e1',name:'Mario',min:20,max:40,pin:'1234',vacTot:26},
+            {id:'e2',name:'Lucia',min:20,max:40,pin:'1234',vacTot:26},
+            {id:'e3',name:'Paolo',min:20,max:40,pin:'1234',vacTot:26},
+            {id:'e4',name:'Anna',min:20,max:40,pin:'1234',vacTot:26}];
+      lsSet(STORAGE_EMP,emps);
+    }
+    if(!lsGet(STORAGE_MODELS,null)){
+      lsSet(STORAGE_MODELS, defaultModels());
+    }
+    renderEmpList();
+    fillEmpSelectLogin();
+    initWeekInputs();
+  })();
+
+</script>
+</body>
+</html>
