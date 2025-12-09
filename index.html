@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8">
-  <title>Bottega del Caffè - Turni (v14)</title>
+  <title>Bottega del Caffè - Turni (v16)</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <style>
     *{box-sizing:border-box;margin:0;padding:0;}
@@ -22,7 +22,7 @@
       display:flex;justify-content:center;align-items:stretch;
       padding:10px;
     }
-    .app{width:100%;max-width:820px;background:rgba(248,236,210,.96);border-radius:24px;
+    .app{width:100%;max-width:880px;background:rgba(248,236,210,.96);border-radius:24px;
       box-shadow:0 10px 40px rgba(75,42,11,.45);display:flex;flex-direction:column;overflow:hidden;}
     header,footer{padding:10px 14px;border-bottom:1px solid var(--border);background:linear-gradient(135deg,#f9e9c7,#f3e2c0);}
     footer{border-top:1px solid var(--border);border-bottom:none;font-size:.7rem;display:flex;justify-content:center;gap:6px;}
@@ -36,6 +36,8 @@
     .btn-primary{background:linear-gradient(135deg,#c48a3b,#7b4a1a);color:#fff;border:1px solid #7b4a1a;box-shadow:0 4px 10px rgba(75,42,11,.4);}
     .btn-outline{background:transparent;border-radius:999px;border:1px solid var(--border);font-size:.8rem;padding:4px 10px;}
     .btn-ghost{background:rgba(255,255,255,.4);border-radius:999px;border:1px solid rgba(75,42,11,.2);font-size:.8rem;padding:5px 10px;}
+    .btn-warn{background:linear-gradient(135deg,#e7b15f,#c48a3b);color:#4b2a0b;border:1px solid #a96f25;font-size:.8rem;padding:6px 10px;border-radius:999px;}
+    .btn-smart{background:linear-gradient(135deg,#f4c87c,#d99b3f);color:#3b220b;border:1px solid #a96f25;font-size:.8rem;padding:6px 10px;border-radius:999px;}
     .card{background:var(--bg-card);border-radius:var(--radius-lg);padding:12px 14px;margin-bottom:10px;
       box-shadow:var(--shadow);border:1px solid #e5cc9d;}
     .title{font-weight:700;margin-bottom:8px;}
@@ -69,11 +71,12 @@
 
     /* Modelli UI */
     .model-grid{
-      display:grid;grid-template-columns:1fr;gap:6px;margin-top:6px;font-size:.78rem;
+      display:grid;grid-template-columns:1fr;gap:8px;margin-top:6px;font-size:.78rem;
     }
     .model-grid table{width:100%;border-collapse:collapse;font-size:.75rem;}
     .model-grid th,.model-grid td{border:1px solid #d2b58a;padding:3px 4px;text-align:center;}
     .model-grid th{background:#f3e2c0;}
+    .model-block-title{font-weight:700;font-size:.82rem;margin:4px 0;}
     @media (min-width:700px){
       .model-grid{grid-template-columns:repeat(2,1fr);}
     }
@@ -118,6 +121,28 @@
       font-weight:600;
     }
 
+    .coverage-box{
+      background:#fffdf6;
+      border:1px solid #e3c89e;
+      border-radius:12px;
+      padding:8px 10px;
+      margin-bottom:8px;
+      font-size:.75rem;
+    }
+    .coverage-row{
+      display:flex;gap:6px;flex-wrap:wrap;
+    }
+    .coverage-pill{
+      padding:4px 8px;border-radius:999px;border:1px solid #e1c89e;background:#fff8e7;
+      display:flex;gap:6px;align-items:center;
+    }
+    .coverage-pill .n{
+      font-weight:700;
+    }
+    .cov-ok{color:var(--ok);}
+    .cov-warn{color:var(--warn);}
+    .cov-bad{color:var(--bad);}
+
     .status-grid-wrap{
       overflow:auto;
       border:1px solid #e3c89e;
@@ -126,7 +151,7 @@
     }
     table.status-grid{
       width:100%;
-      min-width:620px;
+      min-width:700px;
       border-collapse:collapse;
       font-size:.75rem;
     }
@@ -148,7 +173,7 @@
       background:#fff4dd;
       z-index:1;
       text-align:left;
-      min-width:140px;
+      min-width:150px;
     }
     .status-cell-select{
       width:100%;
@@ -183,7 +208,7 @@
     .print-header-row{display:flex;justify-content:space-between;margin-bottom:3px;}
     .print-header-row span.label{font-weight:700;}
 
-    /* PRINT TABLE LAYOUT - Opzione A */
+    /* PRINT TABLE LAYOUT */
     .print-table-wrapper{
       margin-top:10px;font-size:.8rem;background:#fff;padding:10px;border-radius:12px;border:1px solid #d0d0d0;
     }
@@ -298,7 +323,7 @@
 
         <div class="model-grid">
           <div>
-            <div style="font-weight:700;font-size:.8rem;margin:4px 0;">Giorni feriali (Lun-Sab)</div>
+            <div class="model-block-title">Giorni feriali (Lun-Ven)</div>
             <table>
               <thead><tr><th>Persona</th><th>Inizio</th><th>Fine</th></tr></thead>
               <tbody>
@@ -310,7 +335,19 @@
             </table>
           </div>
           <div>
-            <div style="font-weight:700;font-size:.8rem;margin:4px 0;">Domenica / Festivi</div>
+            <div class="model-block-title">Sabato</div>
+            <table>
+              <thead><tr><th>Persona</th><th>Inizio</th><th>Fine</th></tr></thead>
+              <tbody>
+                <tr><td>Persona 1</td><td><input id="sa1Start" type="time"></td><td><input id="sa1End" type="time"></td></tr>
+                <tr><td>Persona 2</td><td><input id="sa2Start" type="time"></td><td><input id="sa2End" type="time"></td></tr>
+                <tr><td>Persona 3</td><td><input id="sa3Start" type="time"></td><td><input id="sa3End" type="time"></td></tr>
+                <tr><td>Persona 4</td><td><input id="sa4Start" type="time"></td><td><input id="sa4End" type="time"></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div>
+            <div class="model-block-title">Domenica / Festivi</div>
             <table>
               <thead><tr><th>Persona</th><th>Inizio</th><th>Fine</th></tr></thead>
               <tbody>
@@ -320,6 +357,11 @@
                 <tr><td>Persona 4</td><td><input id="su4Start" type="time"></td><td><input id="su4End" type="time"></td></tr>
               </tbody>
             </table>
+          </div>
+          <div>
+            <div style="font-size:.72rem;color:var(--text-soft);padding:6px 4px;">
+              <b>Nota:</b> il sabato è gestito separatamente.
+            </div>
           </div>
         </div>
 
@@ -346,11 +388,14 @@
         <div class="status-toolbar">
           <div class="status-toolbar-left">
             <button id="toggleTodayRestViewBtn" class="btn btn-outline">Mostra solo riposi oggi</button>
+            <button id="autoRestBtn" class="btn-warn">Assegna riposi automatici</button>
+            <button id="smartAutoRestBtn" class="btn-smart">Auto riposi + rotazione intelligente</button>
             <small id="todayKeyLabel">-</small>
           </div>
-          <small>Scorri a destra/sinistra per i giorni</small>
+          <small>Vincolo: almeno 4 persone disponibili al giorno.</small>
         </div>
 
+        <div id="coverageBox" class="coverage-box"></div>
         <div id="todayRestBox" class="today-rest-box hidden"></div>
         <div id="weekOffContainer"></div>
       </div>
@@ -438,7 +483,7 @@
 </div>
 
 <script>
-  // Chiavi compatibili con v11/v12/v13
+  // Storage
   var STORAGE_EMP = 'bdc_emps_v11';
   var STORAGE_SCHED = 'bdc_sched_v11';
   var STORAGE_MODELS = 'bdc_models_v7';
@@ -456,16 +501,23 @@
   ];
 
   function defaultModels(){
+    function mkWeekday(p4Start, p4End){
+      return [
+        { label:'Persona 1', start:'07:00', end:'14:00' },
+        { label:'Persona 2', start:'09:00', end:'14:00' },
+        { label:'Persona 3', start:'14:00', end:'20:30' },
+        { label:'Persona 4', start:p4Start, end:p4End }
+      ];
+    }
+    var m1Week = mkWeekday('14:00','19:00');
+    var m2Week = mkWeekday('15:00','19:00');
+
     return {
       "1": {
         id:"1",
-        name: "Modello 1 (P4 14-19)",
-        weekday: [
-          { label:'Persona 1', start:'07:00', end:'14:00' },
-          { label:'Persona 2', start:'09:00', end:'14:00' },
-          { label:'Persona 3', start:'14:00', end:'20:30' },
-          { label:'Persona 4', start:'14:00', end:'19:00' }
-        ],
+        name: "Modello 1",
+        weekday: m1Week,
+        saturday: JSON.parse(JSON.stringify(m1Week)),
         sunday: [
           { label:'Persona 1', start:'07:30', end:'14:00' },
           { label:'Persona 2', start:'09:00', end:'14:00' },
@@ -475,13 +527,9 @@
       },
       "2": {
         id:"2",
-        name: "Modello 2 (P4 15-19)",
-        weekday: [
-          { label:'Persona 1', start:'07:00', end:'14:00' },
-          { label:'Persona 2', start:'09:00', end:'14:00' },
-          { label:'Persona 3', start:'14:00', end:'20:30' },
-          { label:'Persona 4', start:'15:00', end:'19:00' }
-        ],
+        name: "Modello 2",
+        weekday: m2Week,
+        saturday: JSON.parse(JSON.stringify(m2Week)),
         sunday: [
           { label:'Persona 1', start:'07:30', end:'14:00' },
           { label:'Persona 2', start:'09:00', end:'14:00' },
@@ -511,7 +559,7 @@
   function isMorning(timeStr){ return timeStr && timeStr < '12:00'; }
 
   function getTodayKey(){
-    var g = new Date().getDay(); // 0 Sun ... 6 Sat
+    var g = new Date().getDay();
     if(g===0) return 'sun';
     if(g===1) return 'mon';
     if(g===2) return 'tue';
@@ -527,8 +575,6 @@
   }
 
   document.getElementById('yearSpan').textContent = new Date().getFullYear();
-
-  // Stato vista filtro riposi oggi
   window._showTodayRestOnly = false;
 
   // Tabs login
@@ -626,6 +672,16 @@
     if(!models){
       models = defaultModels();
       lsSet(STORAGE_MODELS, models);
+    } else {
+      var changed=false;
+      Object.keys(models).forEach(function(id){
+        var m=models[id];
+        if(!m.saturday){
+          m.saturday = JSON.parse(JSON.stringify(m.weekday || []));
+          changed=true;
+        }
+      });
+      if(changed) lsSet(STORAGE_MODELS, models);
     }
     return models;
   }
@@ -662,16 +718,26 @@
     var m = models[id];
     if(!m) return;
     document.getElementById('modelName').value = m.name;
-    function setTime(id,val){ var el=document.getElementById(id); if(el) el.value=val; }
-    setTime('wd1Start', m.weekday[0].start); setTime('wd1End', m.weekday[0].end);
-    setTime('wd2Start', m.weekday[1].start); setTime('wd2End', m.weekday[1].end);
-    setTime('wd3Start', m.weekday[2].start); setTime('wd3End', m.weekday[2].end);
-    setTime('wd4Start', m.weekday[3].start); setTime('wd4End', m.weekday[3].end);
 
-    setTime('su1Start', m.sunday[0].start); setTime('su1End', m.sunday[0].end);
-    setTime('su2Start', m.sunday[1].start); setTime('su2End', m.sunday[1].end);
-    setTime('su3Start', m.sunday[2].start); setTime('su3End', m.sunday[2].end);
-    setTime('su4Start', m.sunday[3].start); setTime('su4End', m.sunday[3].end);
+    function setTime(id,val){ var el=document.getElementById(id); if(el) el.value=val || ''; }
+
+    var wd = m.weekday || [];
+    setTime('wd1Start', wd[0] && wd[0].start); setTime('wd1End', wd[0] && wd[0].end);
+    setTime('wd2Start', wd[1] && wd[1].start); setTime('wd2End', wd[1] && wd[1].end);
+    setTime('wd3Start', wd[2] && wd[2].start); setTime('wd3End', wd[2] && wd[2].end);
+    setTime('wd4Start', wd[3] && wd[3].start); setTime('wd4End', wd[3] && wd[3].end);
+
+    var sa = m.saturday || wd;
+    setTime('sa1Start', sa[0] && sa[0].start); setTime('sa1End', sa[0] && sa[0].end);
+    setTime('sa2Start', sa[1] && sa[1].start); setTime('sa2End', sa[1] && sa[1].end);
+    setTime('sa3Start', sa[2] && sa[2].start); setTime('sa3End', sa[2] && sa[2].end);
+    setTime('sa4Start', sa[3] && sa[3].start); setTime('sa4End', sa[3] && sa[3].end);
+
+    var su = m.sunday || [];
+    setTime('su1Start', su[0] && su[0].start); setTime('su1End', su[0] && su[0].end);
+    setTime('su2Start', su[1] && su[1].start); setTime('su2End', su[1] && su[1].end);
+    setTime('su3Start', su[2] && su[2].start); setTime('su3End', su[2] && su[2].end);
+    setTime('su4Start', su[3] && su[3].start); setTime('su4End', su[3] && su[3].end);
   }
 
   function initModelsUI(){
@@ -692,14 +758,16 @@
   document.getElementById('newModelBtn').onclick=function(){
     var id = uid();
     var models = getModels();
+    var baseWeek=[
+      {label:'Persona 1',start:'07:00',end:'14:00'},
+      {label:'Persona 2',start:'09:00',end:'14:00'},
+      {label:'Persona 3',start:'14:00',end:'20:30'},
+      {label:'Persona 4',start:'14:00',end:'19:00'}
+    ];
     models[id] = {
       id:id, name:'Nuovo modello',
-      weekday:[
-        {label:'Persona 1',start:'07:00',end:'14:00'},
-        {label:'Persona 2',start:'09:00',end:'14:00'},
-        {label:'Persona 3',start:'14:00',end:'20:30'},
-        {label:'Persona 4',start:'14:00',end:'19:00'}
-      ],
+      weekday: JSON.parse(JSON.stringify(baseWeek)),
+      saturday: JSON.parse(JSON.stringify(baseWeek)),
       sunday:[
         {label:'Persona 1',start:'07:30',end:'14:00'},
         {label:'Persona 2',start:'09:00',end:'14:00'},
@@ -719,7 +787,9 @@
     var id = document.getElementById('modelEditSelect').value;
     if(!id || !models[id]){ alert('Seleziona un modello o creane uno nuovo.'); return; }
     var name = document.getElementById('modelName').value.trim() || 'Modello';
+
     function gt(id){return document.getElementById(id).value || '00:00';}
+
     models[id].name = name;
     models[id].weekday = [
       {label:'Persona 1',start:gt('wd1Start'),end:gt('wd1End')},
@@ -727,12 +797,19 @@
       {label:'Persona 3',start:gt('wd3Start'),end:gt('wd3End')},
       {label:'Persona 4',start:gt('wd4Start'),end:gt('wd4End')}
     ];
+    models[id].saturday = [
+      {label:'Persona 1',start:gt('sa1Start'),end:gt('sa1End')},
+      {label:'Persona 2',start:gt('sa2Start'),end:gt('sa2End')},
+      {label:'Persona 3',start:gt('sa3Start'),end:gt('sa3End')},
+      {label:'Persona 4',start:gt('sa4Start'),end:gt('sa4End')}
+    ];
     models[id].sunday = [
       {label:'Persona 1',start:gt('su1Start'),end:gt('su1End')},
       {label:'Persona 2',start:gt('su2Start'),end:gt('su2End')},
       {label:'Persona 3',start:gt('su3Start'),end:gt('su3End')},
       {label:'Persona 4',start:gt('su4Start'),end:gt('su4End')}
     ];
+
     setModels(models);
     populateModelSelects();
     document.getElementById('modelEditSelect').value = id;
@@ -858,6 +935,24 @@
     return c;
   }
 
+  function getDayRiposiCount(weekStatus, dayKey){
+    var c=0;
+    Object.keys(weekStatus).forEach(function(empId){
+      var st = weekStatus[empId] || {};
+      if(st[dayKey]==='riposo') c++;
+    });
+    return c;
+  }
+
+  function getDayUnavailableCount(weekStatus, dayKey){
+    var c=0;
+    Object.keys(weekStatus).forEach(function(empId){
+      var st = weekStatus[empId] || {};
+      if(st[dayKey]==='riposo' || st[dayKey]==='ferie' || st[dayKey]==='malattia') c++;
+    });
+    return c;
+  }
+
   function updateGenerateHint(){
     var hint=document.getElementById('genHint');
     var start = document.getElementById('weekStart') ? document.getElementById('weekStart').value : '';
@@ -892,7 +987,6 @@
     var todayKey = getTodayKey();
     var todayLabel = getTodayLabel();
 
-    // se oggi non è nella settimana selezionata
     if(today < ws || today > we){
       box.innerHTML = '<div style="font-weight:700;margin-bottom:4px;">Riposi oggi</div>' +
         '<div style="color:var(--text-soft);">Oggi ('+fDate(today)+') non rientra nella settimana selezionata.</div>';
@@ -918,7 +1012,161 @@
     box.innerHTML = html;
   }
 
-  // NEW Week day status UI (grid + filtro riposi oggi)
+  function renderCoverageBox(weekStart, emps, weekStatus){
+    var box = document.getElementById('coverageBox');
+    if(!box) return;
+    if(!weekStart || emps.length===0){
+      box.innerHTML = '';
+      return;
+    }
+    var N = emps.length;
+    var minWorking = 4;
+
+    var html = '<div style="font-weight:700;margin-bottom:4px;">Copertura giornaliera (stima)</div>';
+    html += '<div class="coverage-row">';
+    DAYS.forEach(function(d){
+      var unavail = getDayUnavailableCount(weekStatus, d.key);
+      var available = N - unavail;
+      var cls = available >= minWorking ? 'cov-ok' : (available === minWorking-1 ? 'cov-warn' : 'cov-bad');
+      html += '<span class="coverage-pill '+cls+'"><span>'+d.label.substring(0,3)+'</span><span class="n">'+available+'/'+minWorking+'</span></span>';
+    });
+    html += '</div>';
+    html += '<div style="margin-top:4px;color:var(--text-soft);">Calcolato su Riposo/Ferie/Malattia inseriti. Se un valore è sotto 4, rischi scopertura.</div>';
+    box.innerHTML = html;
+  }
+
+  // Storico riposi per rotazione intelligente
+  function computeRestHistoryCounts(){
+    var all = lsGet(STORAGE_DAY_STATUS, {});
+    var counts = {}; // empId -> dayKey -> count
+    Object.keys(all).forEach(function(weekStart){
+      var ws = all[weekStart] || {};
+      Object.keys(ws).forEach(function(empId){
+        var perEmp = ws[empId] || {};
+        Object.keys(perEmp).forEach(function(dayKey){
+          if(perEmp[dayKey] === 'riposo'){
+            if(!counts[empId]) counts[empId] = {};
+            counts[empId][dayKey] = (counts[empId][dayKey] || 0) + 1;
+          }
+        });
+      });
+    });
+    return counts;
+  }
+
+  function autoAssignRest(weekStart, smartMode){
+    var emps = lsGet(STORAGE_EMP,[]);
+    if(emps.length===0){ alert('Nessun dipendente.'); return; }
+
+    var weekStatus = getWeekStatus(weekStart);
+    emps.forEach(function(e){
+      if(!weekStatus[e.id]) weekStatus[e.id] = {};
+    });
+
+    var N = emps.length;
+    var minWorking = 4;
+    var maxRiposiPerDay = Math.max(0, N - minWorking);
+
+    if(maxRiposiPerDay === 0){
+      alert('Con '+N+' dipendenti e 4 persone richieste al giorno, non è possibile assegnare riposi automatici senza aggiungere personale.');
+      return;
+    }
+
+    var history = smartMode ? computeRestHistoryCounts() : {};
+
+    var needList = emps.map(function(e){
+      var target = (e.restTarget!=null)?e.restTarget:2;
+      var have = countRiposiForEmp(weekStatus, e.id);
+      var need = Math.max(0, target - have);
+      return { emp:e, target:target, have:have, need:need };
+    }).filter(function(x){ return x.need > 0; });
+
+    if(needList.length===0){
+      alert('Tutti i dipendenti hanno già i riposi impostati secondo i target.');
+      renderWeekDayStatus();
+      updateGenerateHint();
+      return;
+    }
+
+    needList.sort(function(a,b){ return b.need - a.need; });
+
+    var dayCounts = {};
+    DAYS.forEach(function(d){ dayCounts[d.key] = getDayRiposiCount(weekStatus, d.key); });
+
+    function canAssign(empId, dayKey){
+      var st = weekStatus[empId][dayKey];
+      if(st && st !== 'riposo') return false; // non sovrascrive ferie/malattia
+      if(st === 'riposo') return false;
+      if(dayCounts[dayKey] >= maxRiposiPerDay) return false;
+      return true;
+    }
+
+    needList.forEach(function(item){
+      var empId = item.emp.id;
+      var remaining = item.need;
+
+      while(remaining > 0){
+        // Candidati ordinati per: meno riposi quel giorno + (in smart) meno storico personale su quel giorno
+        var candidates = DAYS.map(function(d){
+          var base = dayCounts[d.key];
+          var h = smartMode ? ((history[empId] && history[empId][d.key]) || 0) : 0;
+          return { key:d.key, base:base, hist:h };
+        }).sort(function(a,b){
+          if(a.base !== b.base) return a.base - b.base;
+          return a.hist - b.hist;
+        });
+
+        var assigned = false;
+        for(var i=0;i<candidates.length;i++){
+          var dk = candidates[i].key;
+          if(canAssign(empId, dk)){
+            weekStatus[empId][dk] = 'riposo';
+            dayCounts[dk] += 1;
+            remaining -= 1;
+            assigned = true;
+            break;
+          }
+        }
+        if(!assigned) break;
+      }
+    });
+
+    setWeekStatus(weekStart, weekStatus);
+    renderWeekDayStatus();
+    renderAdminSchedule();
+    renderEmpStats();
+    updateGenerateHint();
+
+    var stillMissing = [];
+    emps.forEach(function(e){
+      var target = (e.restTarget!=null)?e.restTarget:2;
+      var have = countRiposiForEmp(weekStatus, e.id);
+      if(have < target){
+        stillMissing.push(e.name + ' ' + have + '/' + target);
+      }
+    });
+    if(stillMissing.length>0){
+      alert('Riposi assegnati, ma alcuni dipendenti restano sotto target per vincolo 4 presenti/giorno:\n' + stillMissing.join('\n'));
+    } else {
+      if(smartMode){
+        alert('Riposi assegnati con rotazione intelligente.');
+      }
+    }
+  }
+
+  // Buttons auto rest
+  document.getElementById('autoRestBtn').onclick=function(){
+    var weekStart = document.getElementById('weekStart').value;
+    if(!weekStart){ alert('Seleziona prima una settimana.'); return; }
+    autoAssignRest(weekStart, false);
+  };
+  document.getElementById('smartAutoRestBtn').onclick=function(){
+    var weekStart = document.getElementById('weekStart').value;
+    if(!weekStart){ alert('Seleziona prima una settimana.'); return; }
+    autoAssignRest(weekStart, true);
+  };
+
+  // Week day status UI (grid + filtro riposi oggi + copertura)
   function renderWeekDayStatus(){
     var container=document.getElementById('weekOffContainer');
     var label=document.getElementById('weekOffLabel');
@@ -931,24 +1179,26 @@
       container.innerHTML='<div style="font-size:.8rem;">Seleziona prima una settimana.</div>';
       if(label) label.textContent='-';
       if(todayBox){ todayBox.classList.add('hidden'); }
+      renderCoverageBox('', [], {});
       return;
     }
     if(label) label.textContent=weekStart;
     if(emps.length===0){
       container.innerHTML='<div style="font-size:.8rem;">Nessun dipendente.</div>';
       if(todayBox){ todayBox.classList.add('hidden'); }
+      renderCoverageBox(weekStart, [], {});
       return;
     }
 
     var weekStatus = getWeekStatus(weekStart);
 
-    // aggiorna box riposi oggi
+    renderCoverageBox(weekStart, emps, weekStatus);
+
     if(todayBox){
       renderTodayRestBox(weekStart, emps, weekStatus);
       todayBox.classList.toggle('hidden', !window._showTodayRestOnly);
     }
 
-    // Se vista filtro attiva, nascondi griglia e mostra solo box
     if(window._showTodayRestOnly){
       container.innerHTML = '';
       updateGenerateHint();
@@ -957,7 +1207,6 @@
 
     var wrap=document.createElement('div');
     wrap.className='status-grid-wrap';
-    wrap.id='statusGridWrap';
 
     var table=document.createElement('table');
     table.className='status-grid';
@@ -1103,7 +1352,11 @@
     var week={days:{},modelId:modelId,notes:document.getElementById('weekNotes').value||''};
 
     DAYS.forEach(function(d,idx){
-      var def=(d.key==='sun'?model.sunday:model.weekday);
+      var def;
+      if(d.key==='sun') def=model.sunday;
+      else if(d.key==='sat') def=(model.saturday || model.weekday);
+      else def=model.weekday;
+
       var dateStr=fDate(addDays(start,idx));
       var dayObj={date:dateStr,shifts:[]};
 
@@ -1463,6 +1716,10 @@
     var name = me ? me.name : 'Dipendente';
     var targetRiposi = me && me.restTarget!=null ? me.restTarget : 2;
 
+    function row(label, value){
+      return '<div class="emp-summary-row"><span class="label">'+label+'</span><span><b>'+value+'</b></span></div>';
+    }
+
     var html = '';
     html += row('Nome', name);
     html += row('Ore settimanali', hoursW.toFixed(1) + ' h');
@@ -1479,10 +1736,6 @@
     html += row('Turni pomeriggio (totale)', String(myHist.afternoon || 0));
 
     summaryBox.innerHTML = html || '<div>Nessun dato disponibile.</div>';
-
-    function row(label, value){
-      return '<div class="emp-summary-row"><span class="label">'+label+'</span><span><b>'+value+'</b></span></div>';
-    }
   }
 
   function renderEmpSchedule(){
@@ -1525,7 +1778,7 @@
     }
   }
 
-  // SEED + compat restTarget
+  // SEED + compat restTarget + saturday nelle models
   (function(){
     var emps=lsGet(STORAGE_EMP,[]);
     if(emps.length===0){
@@ -1546,7 +1799,10 @@
 
     if(!lsGet(STORAGE_MODELS,null)){
       lsSet(STORAGE_MODELS, defaultModels());
+    } else {
+      getModels();
     }
+
     renderEmpList();
     fillEmpSelectLogin();
     initWeekInputs();
