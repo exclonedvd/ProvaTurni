@@ -241,6 +241,28 @@
       .print-table-wrapper{border:none;padding:0;}
     }
   </style>
+
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/11.0.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.0.0/firebase-analytics-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore-compat.js"></script>
+  <script>
+    // Firebase configuration fornita
+    const firebaseConfig = {
+      apiKey: "AIzaSyAh6IjL0Vng_jrM5oyk4twdpy3jq65kBBY",
+      authDomain: "turnilavorobar.firebaseapp.com",
+      projectId: "turnilavorobar",
+      storageBucket: "turnilavorobar.firebasestorage.app",
+      messagingSenderId: "257120193332",
+      appId: "1:257120193332:web:c639977bdb353ab171b361",
+      measurementId: "G-04MXP0H6VZ"
+    };
+    firebase.initializeApp(firebaseConfig);
+    if (firebase.analytics) {
+      try { firebase.analytics(); } catch(e) { console.log(e); }
+    }
+    window._firestore = firebase.firestore();
+  </script>
 </head>
 <body>
 <div class="app">
@@ -262,21 +284,21 @@
     <div id="loginView" class="card screen-only">
       <div class="title">Accedi</div>
       <div class="tabs">
-        <button class="tab-btn active" data-target="tabAdmin">Admin</button>
-        <button class="tab-btn" data-target="tabEmp">Dipendente</button>
+        <button class="tab-btn active" data-target="tabEmp">Dipendente</button>
+        <button class="tab-btn" data-target="tabAdmin">Admin</button>
       </div>
-      <div id="tabAdmin">
-        <label for="adminPassword">Password admin</label>
-        <input id="adminPassword" type="password" placeholder="admin">
-        <button id="adminLoginBtn" class="btn btn-primary" style="margin-top:8px;width:100%;">Entra come admin</button>
-        <div style="font-size:.75rem;margin-top:4px;color:var(--text-soft);">Default: <b>admin</b></div>
-      </div>
-      <div id="tabEmp" class="hidden">
+      <div id="tabEmp">
         <label for="empSelectLogin">Dipendente</label>
         <select id="empSelectLogin"></select>
         <label for="empPinLogin" style="margin-top:6px;">PIN</label>
         <input id="empPinLogin" type="password">
         <button id="empLoginBtn" class="btn btn-primary" style="margin-top:8px;width:100%;">Entra</button>
+      </div>
+      <div id="tabAdmin" class="hidden">
+        <label for="adminPassword">Password admin</label>
+        <input id="adminPassword" type="password" placeholder="admin">
+        <button id="adminLoginBtn" class="btn btn-primary" style="margin-top:8px;width:100%;">Entra come admin</button>
+        <div style="font-size:.75rem;margin-top:4px;color:var(--text-soft);">Default: <b>admin</b></div>
       </div>
     </div>
 
@@ -372,7 +394,7 @@
       </div>
 
       <div class="card screen-only">
-        <div class="title">Giorni liberi / ferie / malattia (settimana)</div>
+        <div class="title">Riepilogo riposi (settimana)</div>
         <div style="font-size:.75rem;margin-bottom:6px;">
           Riguarda la settimana che inizia il: <span id="weekOffLabel">-</span>
         </div>
@@ -388,8 +410,8 @@
         <div class="status-toolbar">
           <div class="status-toolbar-left">
             <button id="toggleTodayRestViewBtn" class="btn btn-outline">Mostra solo riposi oggi</button>
-            <button id="autoRestBtn" class="btn-warn">Assegna riposi automatici</button>
-            <button id="smartAutoRestBtn" class="btn-smart">Auto riposi + rotazione intelligente</button>
+            <button id="autoRestBtn" class="btn-warn" style="display:none;">Assegna riposi automatici</button>
+            <button id="smartAutoRestBtn" class="btn-smart" style="display:none;">Auto riposi + rotazione intelligente</button>
             <small id="todayKeyLabel">-</small>
           </div>
           <small>Vincolo: almeno 4 persone disponibili al giorno.</small>
@@ -398,6 +420,10 @@
         <div id="coverageBox" class="coverage-box"></div>
         <div id="todayRestBox" class="today-rest-box hidden"></div>
         <div id="weekOffContainer"></div>
+
+        <div id="weekOffAdminAdd" style="margin-top:10px;font-size:.78rem;">
+          <!-- UI per aggiungere/modificare i riposi dei dipendenti verrà generata via JS -->
+        </div>
       </div>
 
       <div class="card screen-only">
@@ -474,6 +500,19 @@
         <div id="empWeekTotal" style="font-size:.8rem;color:var(--text-soft);margin-bottom:4px;"></div>
         <div id="schedEmp"></div>
       </div>
+
+      <div class="card">
+        <div class="title">Le mie preferenze di riposo</div>
+        <div id="empRestWeekLabel" style="font-size:.75rem;color:var(--text-soft);margin-bottom:6px;">-</div>
+        <div id="empRestPrefs"></div>
+        <button id="empSaveRestBtn" class="btn btn-primary" style="margin-top:8px;width:100%;">Salva preferenze</button>
+      </div>
+
+      <div class="card">
+        <div class="title">Riposi colleghi (questa settimana)</div>
+        <div id="empOthersRestLabel" style="font-size:.75rem;color:var(--text-soft);margin-bottom:6px;">-</div>
+        <div id="empOthersRestBox" style="font-size:.8rem;"></div>
+      </div>
     </div>
   </div>
 
@@ -540,11 +579,61 @@
     };
   }
 
-  function lsGet(key, fallback){
-    try{ var v = localStorage.getItem(key); return v?JSON.parse(v):fallback; }
-    catch(e){ console.log(e); return fallback; }
+  var REMOTE_STATE = null;
+  var STATE_DOC_ID = 'singleton';
+
+  function loadRemoteState(){
+    return new Promise(function(resolve){
+      var db = window._firestore;
+      if(!db){
+        console.error('Firestore non disponibile, uso stato locale vuoto.');
+        REMOTE_STATE = {};
+        return resolve();
+      }
+      db.collection('appState').doc(STATE_DOC_ID).get()
+        .then(function(doc){
+          if(doc.exists){
+            REMOTE_STATE = doc.data() || {};
+          }else{
+            REMOTE_STATE = {
+              bdc_emps_v11: [],
+              bdc_sched_v11: {},
+              bdc_day_status_v4: {},
+              bdc_models_v7: null
+            };
+            return db.collection('appState').doc(STATE_DOC_ID).set(REMOTE_STATE);
+          }
+        })
+        .catch(function(err){
+          console.error('Errore caricando Firestore', err);
+          REMOTE_STATE = {};
+        })
+        .finally(function(){
+          resolve();
+        });
+    });
   }
-  function lsSet(key,val){ localStorage.setItem(key, JSON.stringify(val)); }
+
+  function saveRemoteState(){
+    var db = window._firestore;
+    if(!db || !REMOTE_STATE) return;
+    db.collection('appState').doc(STATE_DOC_ID).set(REMOTE_STATE)
+      .catch(function(err){
+        console.error('Errore salvando su Firestore', err);
+      });
+  }
+
+  function lsGet(key, fallback){
+    if(!REMOTE_STATE || typeof REMOTE_STATE[key] === 'undefined' || REMOTE_STATE[key] === null){
+      return fallback;
+    }
+    return REMOTE_STATE[key];
+  }
+  function lsSet(key,val){
+    if(!REMOTE_STATE) REMOTE_STATE = {};
+    REMOTE_STATE[key] = val;
+    saveRemoteState();
+  }
 
   function uid(){ return 'm'+Math.random().toString(36).slice(2,9); }
   function dMonday(){
@@ -634,6 +723,8 @@
     document.getElementById('logoutBtn').classList.remove('hidden');
     initWeekInputs();
     renderEmpSchedule();
+    renderEmpRestPrefs();
+    renderEmpOthersRest();
   };
 
   function updateTodayLabelUI(){
@@ -1216,14 +1307,15 @@
     var thName=document.createElement('th');
     thName.textContent='Dipendente';
     hr.appendChild(thName);
-    DAYS.forEach(function(d){
-      var th=document.createElement('th');
-      th.textContent=d.label.substring(0,3);
-      hr.appendChild(th);
-    });
-    var thRest=document.createElement('th');
-    thRest.textContent='Riposi';
-    hr.appendChild(thRest);
+    var thDays=document.createElement('th');
+    thDays.textContent='Giorni di riposo scelti';
+    hr.appendChild(thDays);
+    var thTarget=document.createElement('th');
+    thTarget.textContent='Target';
+    hr.appendChild(thTarget);
+    var thEsito=document.createElement('th');
+    thEsito.textContent='Esito';
+    hr.appendChild(thEsito);
     thead.appendChild(hr);
     table.appendChild(thead);
 
@@ -1231,75 +1323,35 @@
 
     emps.forEach(function(e){
       var tr=document.createElement('tr');
+
       var tdName=document.createElement('td');
-      var rt = (e.restTarget!=null)?e.restTarget:2;
-      tdName.innerHTML='<div style="font-weight:700;">'+e.name+'</div><div style="font-size:.68rem;color:var(--text-soft);">Target riposi: '+rt+'</div>';
+      tdName.textContent = e.name;
       tr.appendChild(tdName);
 
+      var rt = (e.restTarget!=null)?e.restTarget:2;
+      var st = weekStatus[e.id] || {};
+      var days = [];
       DAYS.forEach(function(d){
-        var td=document.createElement('td');
-        var sel=document.createElement('select');
-        sel.className='status-cell-select';
-        sel.setAttribute('data-emp', e.id);
-        sel.setAttribute('data-day', d.key);
-
-        var current = (weekStatus[e.id] && weekStatus[e.id][d.key]) || '';
-
-        var options = [
-          {v:'', t:'Lavora'},
-          {v:'riposo', t:'Riposo'},
-          {v:'ferie', t:'Ferie'},
-          {v:'malattia', t:'Malattia'}
-        ];
-        options.forEach(function(o){
-          var opt=document.createElement('option');
-          opt.value=o.v; opt.textContent=o.t;
-          if(o.v===current) opt.selected=true;
-          sel.appendChild(opt);
-        });
-
-        sel.onchange=function(){
-          var empId=this.getAttribute('data-emp');
-          var dayKey=this.getAttribute('data-day');
-          var newVal=this.value;
-          var weekStatusNow = getWeekStatus(weekStart);
-          var empNow = emps.find(function(x){return x.id===empId;});
-          var target = empNow && empNow.restTarget!=null ? empNow.restTarget : 2;
-
-          var prevVal = (weekStatusNow[empId] && weekStatusNow[empId][dayKey]) || '';
-          var currentRiposi = countRiposiForEmp(weekStatusNow, empId);
-
-          if(newVal==='riposo' && prevVal!=='riposo'){
-            if(currentRiposi >= target){
-              alert('Hai già raggiunto il target di riposi ('+target+').');
-              this.value = prevVal;
-              return;
-            }
-          }
-
-          var empStatus = weekStatusNow[empId] || {};
-          if(newVal){ empStatus[dayKey] = newVal; }
-          else{ delete empStatus[dayKey]; }
-          weekStatusNow[empId] = empStatus;
-          setWeekStatus(weekStart, weekStatusNow);
-
-          renderWeekDayStatus();
-          renderAdminSchedule();
-          renderEmpStats();
-          updateGenerateHint();
-        };
-
-        td.appendChild(sel);
-        tr.appendChild(td);
+        if(st[d.key]==='riposo'){
+          days.push(d.label.substring(0,3));
+        }
       });
 
-      var tdRest=document.createElement('td');
+      var tdDays=document.createElement('td');
+      tdDays.textContent = days.length>0 ? days.join(', ') : '-';
+      tr.appendChild(tdDays);
+
+      var tdTarget=document.createElement('td');
+      tdTarget.textContent = rt;
+      tr.appendChild(tdTarget);
+
+      var tdEsito=document.createElement('td');
       var have = countRiposiForEmp(weekStatus, e.id);
       var badge=document.createElement('span');
       badge.className='rest-badge ' + (have===rt ? 'rest-ok' : (have<rt ? 'rest-warn' : 'rest-bad'));
       badge.textContent = have + '/' + rt;
-      tdRest.appendChild(badge);
-      tr.appendChild(tdRest);
+      tdEsito.appendChild(badge);
+      tr.appendChild(tdEsito);
 
       tbody.appendChild(tr);
     });
@@ -1309,6 +1361,71 @@
 
     container.innerHTML='';
     container.appendChild(wrap);
+
+    // UI per aggiungere/modificare i riposi da parte dell'admin
+    var adminBox = document.getElementById('weekOffAdminAdd');
+    if(adminBox){
+      if(!weekStart || emps.length===0){
+        adminBox.innerHTML = '';
+      }else{
+        var htmlAdmin = '';
+        htmlAdmin += '<div style="margin-top:8px;font-weight:600;">Aggiungi / modifica riposi per dipendente</div>';
+        htmlAdmin += '<div style="margin-top:4px;">';
+        htmlAdmin += '<label style="display:block;margin-bottom:4px;">Dipendente</label>';
+        htmlAdmin += '<select id="adminRestEmpSelect" style="width:100%;margin-bottom:6px;">';
+        emps.forEach(function(e){
+          htmlAdmin += '<option value="'+e.id+'">'+e.name+'</option>';
+        });
+        htmlAdmin += '</select>';
+        htmlAdmin += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">';
+        DAYS.forEach(function(d){
+          htmlAdmin += '<label style="font-size:.75rem;">';
+          htmlAdmin += '<input type="checkbox" class="admin-rest-day" data-day="'+d.key+'" style="margin-right:3px;">';
+          htmlAdmin += d.label.substring(0,3);
+          htmlAdmin += '</label>';
+        });
+        htmlAdmin += '</div>';
+        htmlAdmin += '<button id="adminRestSaveBtn" class="btn btn-outline" style="width:100%;">Salva riposi per dipendente</button>';
+        htmlAdmin += '<div style="font-size:.7rem;color:var(--text-soft);margin-top:4px;">I riposi impostati qui si sommano o sostituiscono quelli inseriti dal dipendente.</div>';
+        htmlAdmin += '</div>';
+        adminBox.innerHTML = htmlAdmin;
+
+        var btn = document.getElementById('adminRestSaveBtn');
+        if(btn){
+          btn.onclick = function(){
+            var empSel = document.getElementById('adminRestEmpSelect');
+            if(!empSel){ return; }
+            var empId = empSel.value;
+            if(!empId){ alert('Seleziona un dipendente.'); return; }
+
+            var weekStatusNow = getWeekStatus(weekStart);
+            if(!weekStatusNow[empId]) weekStatusNow[empId] = {};
+            var perEmp = weekStatusNow[empId];
+
+            var checks = adminBox.querySelectorAll('.admin-rest-day');
+            checks.forEach(function(chk){
+              var dayKey = chk.getAttribute('data-day');
+              if(chk.checked){
+                if(perEmp[dayKey] !== 'ferie' && perEmp[dayKey] !== 'malattia'){
+                  perEmp[dayKey] = 'riposo';
+                }
+              }else{
+                if(perEmp[dayKey] === 'riposo'){
+                  delete perEmp[dayKey];
+                }
+              }
+            });
+
+            weekStatusNow[empId] = perEmp;
+            setWeekStatus(weekStart, weekStatusNow);
+            renderWeekDayStatus();
+            renderEmpStats();
+            updateGenerateHint();
+            alert('Riposi aggiornati per il dipendente selezionato.');
+          };
+        }
+      }
+    }
 
     updateGenerateHint();
   }
@@ -1338,263 +1455,37 @@ document.getElementById('genBtn').onclick=function(){
   var emps=lsGet(STORAGE_EMP,[]);
   if(emps.length===0){alert('Nessun dipendente');return;}
 
-  var weekStatus = getWeekStatus(start);
-  var mism=[];
-  emps.forEach(function(e){
-    var target = (e.restTarget!=null)?e.restTarget:2;
-    var have = countRiposiForEmp(weekStatus, e.id);
-    if(have !== target){ mism.push(e.name+' '+have+'/'+target); }
-  });
-  if(mism.length>0){
-    alert('Prima di generare, imposta i riposi settimanali corretti:\n' + mism.join('\n'));
-    return;
-  }
-
-  // Storico fasce (mattina/pomeriggio) - leggero supporto
-  function computeBucketHistoryLocal(){
-    var schedAll = lsGet(STORAGE_SCHED, {});
-    var res = { morning:{}, afternoon:{} };
-    Object.keys(schedAll).forEach(function(weekStart){
-      var week = schedAll[weekStart];
-      if(!week || !week.days) return;
-      DAYS.forEach(function(d){
-        var day = week.days[d.key];
-        if(!day || !day.shifts) return;
-        day.shifts.forEach(function(s){
-          if(!s.empId) return;
-          var bucket = isMorning(s.start) ? 'morning' : 'afternoon';
-          res[bucket][s.empId] = (res[bucket][s.empId] || 0) + 1;
-        });
-      });
-    });
-    return res;
-  }
-  var histBucket = computeBucketHistoryLocal();
-
-  var schedAll=lsGet(STORAGE_SCHED,{});
-  var weeks = Object.keys(schedAll);
-  var weekIndex = weeks.length;
-
+  // Usa il modello solo per creare i turni vuoti (senza assegnazione automatica dei dipendenti)
+  var schedAll = lsGet(STORAGE_SCHED,{});
   var week={days:{},modelId:modelId,notes:document.getElementById('weekNotes').value||''};
 
-  // minuti assegnati nella settimana in generazione
-  var tempMinutes = {};
-  var minMinutes = {};
-  var maxMinutes = {};
-
-  // conteggio fasce nella settimana in generazione
-  var tempBucket = {};
-
-  emps.forEach(function(e){
-    tempMinutes[e.id]=0;
-    tempBucket[e.id] = { morning:0, afternoon:0 };
-
-    var mn = (e.min!=null && e.min!=='' && !isNaN(e.min)) ? parseFloat(e.min) : 0;
-    var mx = (e.max!=null && e.max!=='' && !isNaN(e.max)) ? parseFloat(e.max) : 9999;
-    minMinutes[e.id]=mn*60;
-    maxMinutes[e.id]=mx*60;
-  });
-
-// Quota fasce settimanali attese per ogni dipendente in base ai giorni NON di riposo/ferie/malattia
-// Esempi:
-// 1 riposo => 6 giorni lavorabili => 3 mattine + 3 pomeriggi
-// 2 riposi => 5 giorni lavorabili => 2 + 3
-// 4 riposi => 3 giorni lavorabili => 1 + 2
-var bucketQuota = {};
-emps.forEach(function(e){
-  var availableDays = 0;
-  DAYS.forEach(function(d){
-    var st = (weekStatus[e.id] && weekStatus[e.id][d.key]) || '';
-    if(!st) availableDays++;
-  });
-  var mornQ = Math.floor(availableDays / 2);
-  var aftQ  = availableDays - mornQ;
-  bucketQuota[e.id] = { morning:mornQ, afternoon:aftQ, total:availableDays };
-});
-
-
-
-  function getDefForDay(dayKey){
-    if(dayKey==='sun') return model.sunday;
-    if(dayKey==='sat') return (model.saturday || model.weekday);
-    return model.weekday;
-  }
-
-  function isUnavailable(empId, dayKey){
-    var stForEmp = (weekStatus[empId] && weekStatus[empId][dayKey]) || '';
-    return !!stForEmp;
-  }
-
-  // Regola HARD di equilibrio fasce:
-  // non permettere che una persona vada avanti di più di 1 turno
-  // Regola HARD di equilibrio fasce:
-// 1) differenza mattina/pomeriggio nella settimana corrente max 1
-// 2) rispetto quota attesa della settimana (calcolata sui giorni disponibili)
-function bucketHardAllowed(empId, bucket){
-  var m = (tempBucket[empId] && tempBucket[empId].morning) || 0;
-  var a = (tempBucket[empId] && tempBucket[empId].afternoon) || 0;
-
-  var q = bucketQuota[empId] || { morning:999, afternoon:999, total:999 };
-
-  // Quota: se ho già raggiunto la quota di quella fascia e l'altra fascia non è ancora piena, blocco
-  if(bucket === 'morning'){
-    if(m >= q.morning && a < q.afternoon) return false;
-    // diff rule
-    return m <= a + 1;
-  } else {
-    if(a >= q.afternoon && m < q.morning) return false;
-    return a <= m + 1;
-  }
-}
-
-  // Penalità soft basata sullo storico (solo tie-break)
-  function historyPenalty(empId, bucket){
-    var hM = (histBucket.morning[empId] || 0);
-    var hA = (histBucket.afternoon[empId] || 0);
-    if(bucket === 'morning'){
-      return Math.max(0, hM - hA);
-    }
-    return Math.max(0, hA - hM);
-  }
-
-  function scoreEmp(emp, shiftMin, bucket){
-    var assigned = tempMinutes[emp.id] || 0;
-    var deficit = Math.max(0, (minMinutes[emp.id] || 0) - assigned);
-    var slack = (maxMinutes[emp.id] || 999999) - assigned;
-
-    var histPen = historyPenalty(emp.id, bucket);
-
-    // priorità a chi è sotto al minimo
-    // penalità storica moderata
-    return (deficit * 2) + (slack * 0.05) - (assigned * 0.1) - (histPen * 10);
+  function getDefForDay(key){
+    if(key==='sat') return model.saturday || [];
+    if(key==='sun') return model.sunday || [];
+    return model.weekday || [];
   }
 
   DAYS.forEach(function(d,idx){
     var def = getDefForDay(d.key);
-
     var dateStr=fDate(addDays(start,idx));
     var dayObj={date:dateStr,shifts:[]};
 
-    var usedToday={};
-
-    def.forEach(function(s,shiftIndex){
-      var shiftMin = durMin(s.start,s.end);
-      var bucket = isMorning(s.start) ? 'morning' : 'afternoon';
-
-      // candidati base: disponibili e non già usati oggi
-      var candidates = emps.filter(function(emp){
-        if(usedToday[emp.id]) return false;
-        if(isUnavailable(emp.id, d.key)) return false;
-        return true;
+    def.forEach(function(s){
+      if(!s.start || !s.end) return;
+      dayObj.shifts.push({
+        label: s.label || '',
+        start: s.start,
+        end: s.end,
+        empId: null
       });
-
-      // HARD bucket filter (prima scelta)
-      var bucketOk = candidates.filter(function(emp){
-        return bucketHardAllowed(emp.id, bucket);
-      });
-
-      // 1) prova a rispettare max (hard) + bucket hard
-      var hard = bucketOk.filter(function(emp){
-        return (tempMinutes[emp.id] + shiftMin) <= (maxMinutes[emp.id] || 999999);
-      });
-
-      function sortByScore(list){
-        list.sort(function(a,b){
-          var sa = scoreEmp(a, shiftMin, bucket);
-          var sb = scoreEmp(b, shiftMin, bucket);
-          if(sa !== sb) return sb - sa;
-
-          // tie-breaker rotazione deterministica
-          var aRot = (weekIndex + idx + shiftIndex + emps.indexOf(a)) % emps.length;
-          var bRot = (weekIndex + idx + shiftIndex + emps.indexOf(b)) % emps.length;
-          return aRot - bRot;
-        });
-        return list;
-      }
-
-      var chosenEmp = null;
-
-      if(hard.length > 0){
-        sortByScore(hard);
-        chosenEmp = hard[0];
-
-      } else {
-        // 2) se nessuno passa il filtro bucket hard, usa comunque max hard
-        var hardNoBucket = candidates.filter(function(emp){
-          return (tempMinutes[emp.id] + shiftMin) <= (maxMinutes[emp.id] || 999999);
-        });
-
-        if(hardNoBucket.length > 0){
-          sortByScore(hardNoBucket);
-          chosenEmp = hardNoBucket[0];
-
-        
-} else {
-          // 3) ultima risorsa: consenti doppio turno stesso giorno se serve copertura
-          //    MA senza mai superare il massimo ore settimanale
-          var emergency = emps.filter(function(emp){
-            if(isUnavailable(emp.id, d.key)) return false;
-            return (tempMinutes[emp.id] + shiftMin) <= (maxMinutes[emp.id] || 999999);
-          });
-
-          if(emergency.length > 0){
-            var emergencyBucketOk = emergency.filter(function(emp){
-              return bucketHardAllowed(emp.id, bucket);
-            });
-            var listToUse = (emergencyBucketOk.length > 0) ? emergencyBucketOk : emergency;
-
-            listToUse.sort(function(a,b){
-              var sa = scoreEmp(a, shiftMin, bucket);
-              var sb = scoreEmp(b, shiftMin, bucket);
-              if(sa !== sb) return sb - sa;
-
-              var aRot = (weekIndex + idx + shiftIndex + emps.indexOf(a)) % emps.length;
-              var bRot = (weekIndex + idx + shiftIndex + emps.indexOf(b)) % emps.length;
-              return aRot - bRot;
-            });
-
-            chosenEmp = listToUse[0];
-          }
-        }
-
-      }
-
-dayObj.shifts.push({ role:s.label,start:s.start,end:s.end,empId: chosenEmp ? chosenEmp.id : null });
-
-      if(chosenEmp){
-        usedToday[chosenEmp.id]=true;
-        tempMinutes[chosenEmp.id] = (tempMinutes[chosenEmp.id] || 0) + shiftMin;
-        tempBucket[chosenEmp.id][bucket] = (tempBucket[chosenEmp.id][bucket] || 0) + 1;
-      }
     });
 
     week.days[d.key]=dayObj;
   });
 
-  // Bilanciamento euristico per avvicinare i minimi e ridurre eventuali sforamenti
-  try{
-    balanceWeekHours(week, emps, weekStatus);
-  }catch(e){
-    console.log('balanceWeekHours error', e);
-  }
-
-
-// Avviso se ci sono turni rimasti vuoti (di solito per vincoli troppo stretti)
-var emptyCount = 0;
-DAYS.forEach(function(d){
-  var day = week.days[d.key];
-  if(!day || !day.shifts) return;
-  day.shifts.forEach(function(s){
-    if(!s.empId) emptyCount++;
-  });
-});
-if(emptyCount > 0){
-  alert('Attenzione: ' + emptyCount + ' turno/i non assegnato/i.\n' +
-        'Questo succede quando i vincoli (max ore, assenze, riposi) rendono impossibile coprire tutto senza sforare.');
-}
-
   schedAll[start]=week;
   lsSet(STORAGE_SCHED,schedAll);
+  renderWeekDayStatus();
   renderAdminSchedule();
   renderEmpStats();
   updateGenerateHint();
@@ -1840,9 +1731,18 @@ function computeHours(week){
           var optEmpty=document.createElement('option');
           optEmpty.value='';optEmpty.textContent='(vuoto)';
           sel.appendChild(optEmpty);
+
+          var dayKey = d.key;
           emps.forEach(function(emp){
+            var st = (weekStatus && weekStatus[emp.id] && weekStatus[emp.id][dayKey]) || '';
+            // Se il dipendente è in riposo quel giorno, non proporlo come scelta,
+            // a meno che non sia già assegnato a questo turno (per poterlo correggere).
+            if(st === 'riposo' && emp.id !== s.empId){
+              return;
+            }
             var o=document.createElement('option');
-            o.value=emp.id; o.textContent=emp.name;
+            o.value=emp.id;
+            o.textContent=emp.name + (st==='riposo' ? ' (riposo)' : '');
             if(emp.id===s.empId) o.selected=true;
             sel.appendChild(o);
           });
@@ -2030,8 +1930,156 @@ function computeHours(week){
     container.innerHTML = html;
   }
 
+  // Preferenze di riposo dipendente
+  function renderEmpRestPrefs(){
+    var label = document.getElementById('empRestWeekLabel');
+    var container = document.getElementById('empRestPrefs');
+    var weekInput = document.getElementById('empWeekStart');
+    var meId = window._currentEmp;
+
+    if(!container || !weekInput || !meId){
+      return;
+    }
+    var start = weekInput.value;
+    if(!start){
+      container.innerHTML = '<div style="font-size:.8rem;">Seleziona prima una settimana.</div>';
+      if(label) label.textContent = '-';
+      return;
+    }
+    if(label) label.textContent = start;
+
+    var weekStatus = getWeekStatus(start);
+    var myStatus = weekStatus[meId] || {};
+
+    var html = '';
+    html += '<div class="status-legend" style="margin-bottom:4px;font-size:.75rem;">';
+    html += '<span class="pill"><b>Lavora</b></span>';
+    html += '<span class="pill"><b>Riposo</b></span>';
+    html += '<span class="pill"><b>Ferie</b></span>';
+    html += '<span class="pill"><b>Malattia</b></span>';
+    html += '</div>';
+
+    html += '<table class="status-grid"><thead><tr><th>Giorno</th><th>Stato</th></tr></thead><tbody>';
+    DAYS.forEach(function(d){
+      var val = myStatus[d.key] || '';
+      html += '<tr>';
+      html += '<td>'+d.label+'</td>';
+      html += '<td><select data-day="'+d.key+'" class="status-select">';
+      var options = [
+        {v:'', t:'Lavora'},
+        {v:'riposo', t:'Riposo'},
+        {v:'ferie', t:'Ferie'},
+        {v:'malattia', t:'Malattia'}
+      ];
+      options.forEach(function(o){
+        html += '<option value="'+o.v+'"'+(o.v===val?' selected':'')+'>'+o.t+'</option>';
+      });
+      html += '</select></td>';
+      html += '</tr>';
+    });
+    html += '</tbody></table>';
+
+    container.innerHTML = html;
+  }
+
+  function renderEmpOthersRest(){
+    var label = document.getElementById('empOthersRestLabel');
+    var box = document.getElementById('empOthersRestBox');
+    var weekInput = document.getElementById('empWeekStart');
+    var meId = window._currentEmp;
+
+    if(!box || !weekInput){
+      return;
+    }
+    var start = weekInput.value;
+    if(!start){
+      box.innerHTML = '<div style="font-size:.8rem;">Seleziona prima una settimana.</div>';
+      if(label) label.textContent = '-';
+      return;
+    }
+    if(label) label.textContent = start;
+
+    var weekStatus = getWeekStatus(start);
+    var emps = lsGet(STORAGE_EMP,[]);
+
+    if(!weekStatus || Object.keys(weekStatus).length===0){
+      box.innerHTML = '<div style="font-size:.8rem;">Nessuna preferenza di riposo registrata.</div>';
+      return;
+    }
+
+    var html = '<div style="font-size:.75rem;color:var(--text-soft);margin-bottom:4px;">Puoi vedere i giorni di riposo scelti dagli altri per evitare sovrapposizioni. Non puoi modificarli.</div>';
+    html += '<table class="status-grid"><thead><tr><th>Dipendente</th><th>Giorni di riposo</th></tr></thead><tbody>';
+
+    emps.forEach(function(e){
+      if(!e || e.id===meId) return;
+      var st = weekStatus[e.id] || {};
+      var days = [];
+      DAYS.forEach(function(d){
+        if(st[d.key]==='riposo'){
+          days.push(d.label.substring(0,3));
+        }
+      });
+      var txt = days.length>0 ? days.join(', ') : '-';
+      html += '<tr><td>'+e.name+'</td><td>'+txt+'</td></tr>';
+    });
+
+    html += '</tbody></table>';
+    box.innerHTML = html;
+  }
+
   // EMPLOYEE PANEL
-  document.getElementById('empLoadBtn').onclick=renderEmpSchedule;
+  document.getElementById('empLoadBtn').onclick=function(){
+    renderEmpSchedule();
+    renderEmpRestPrefs();
+    renderEmpOthersRest();
+  };
+
+  var empSaveRestBtn = document.getElementById('empSaveRestBtn');
+  if(empSaveRestBtn){
+    empSaveRestBtn.onclick=function(){
+      var meId = window._currentEmp;
+      var weekInput = document.getElementById('empWeekStart');
+      if(!meId || !weekInput){ return; }
+      var start = weekInput.value;
+      if(!start){ alert('Seleziona prima una settimana.'); return; }
+
+      var emps = lsGet(STORAGE_EMP,[]);
+      var me = null;
+      for(var i=0;i<emps.length;i++){
+        if(emps[i].id===meId){ me = emps[i]; break; }
+      }
+      var target = (me && me.restTarget!=null) ? me.restTarget : null;
+
+      var selects = document.querySelectorAll('#empRestPrefs select[data-day]');
+      var riposiCount = 0;
+      selects.forEach(function(sel){
+        var val = sel.value || '';
+        if(val === 'riposo'){
+          riposiCount++;
+        }
+      });
+
+      if(target!=null && target>=0 && riposiCount > target){
+        alert('Puoi indicare al massimo ' + target + ' giorni di riposo. Attualmente ne hai selezionati ' + riposiCount + '.');
+        return;
+      }
+
+      var weekStatus = getWeekStatus(start);
+      if(!weekStatus[meId]) weekStatus[meId] = {};
+      var perEmp = weekStatus[meId];
+
+      selects.forEach(function(sel){
+        var dayKey = sel.getAttribute('data-day');
+        var val = sel.value || '';
+        if(val){ perEmp[dayKey] = val; }
+        else { delete perEmp[dayKey]; }
+      });
+      setWeekStatus(start, weekStatus);
+      renderEmpOthersRest();
+      alert('Preferenze di riposo aggiornate.');
+    };
+  }
+
 
   function renderEmpWeekSummary(start, meId){
     var summaryBox = document.getElementById('empSummaryBox');
@@ -2141,7 +2189,8 @@ function computeHours(week){
   }
 
   // SEED + compat restTarget + saturday nelle models
-  (function(){
+  (async function(){
+    await loadRemoteState();
     var emps=lsGet(STORAGE_EMP,[]);
     if(emps.length===0){
       emps=[
