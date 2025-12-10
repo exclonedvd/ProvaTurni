@@ -275,6 +275,16 @@
           <div style="font-size:.7rem;color:var(--text-soft);">Gestione turni</div>
         </div>
       </div>
+
+      <div id="statusBox" class="screen-only" style="text-align:right;font-size:.7rem;color:var(--text-soft);">
+        <div>
+          <span id="onlineStatusBullet" style="display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;background:#aaa;"></span>
+          <span id="onlineStatusLabel">Offline</span>
+        </div>
+        <div>Ultima sync: <span id="lastSyncText">-</span></div>
+        <div>Da: <span id="lastSyncUser">-</span></div>
+      </div>
+
       <button id="logoutBtn" class="btn-ghost hidden">Esci</button>
     </div>
   </header>
@@ -581,6 +591,8 @@
 
   var REMOTE_STATE = null;
   var STATE_DOC_ID = 'singleton';
+  window._currentUserLabel = 'Anonimo';
+  window._isAdminLogged = false;
 
   function loadRemoteState(){
     return new Promise(function(resolve){
@@ -609,6 +621,11 @@
           REMOTE_STATE = {};
         })
         .finally(function(){
+          // garantisce la presenza dei metadati di sincronizzazione
+          if(!REMOTE_STATE) REMOTE_STATE = {};
+          if(!REMOTE_STATE.lastSyncAt) REMOTE_STATE.lastSyncAt = null;
+          if(!REMOTE_STATE.lastSyncBy) REMOTE_STATE.lastSyncBy = null;
+          if(!REMOTE_STATE.lastSyncById) REMOTE_STATE.lastSyncById = null;
           resolve();
         });
     });
@@ -617,7 +634,22 @@
   function saveRemoteState(){
     var db = window._firestore;
     if(!db || !REMOTE_STATE) return;
+
+    // aggiorna metadati di sincronizzazione
+    try{
+      var now = new Date();
+      REMOTE_STATE.lastSyncAt = now.toISOString();
+      var label = window._currentUserLabel || 'Sistema';
+      REMOTE_STATE.lastSyncBy = label;
+      REMOTE_STATE.lastSyncById = window._currentEmp || (window._isAdminLogged ? 'admin' : null);
+    }catch(e){
+      console.error('Errore aggiornando i metadati di sincronizzazione', e);
+    }
+
     db.collection('appState').doc(STATE_DOC_ID).set(REMOTE_STATE)
+      .then(function(){
+        updateSyncInfoUI();
+      })
       .catch(function(err){
         console.error('Errore salvando su Firestore', err);
       });
@@ -634,6 +666,49 @@
     REMOTE_STATE[key] = val;
     saveRemoteState();
   }
+
+  function updateOnlineStatusUI(){
+    var bullet = document.getElementById('onlineStatusBullet');
+    var label = document.getElementById('onlineStatusLabel');
+    var online = navigator.onLine;
+    if(bullet){
+      bullet.style.background = online ? '#1f7a3a' : '#b33939';
+    }
+    if(label){
+      label.textContent = online ? 'Online' : 'Offline';
+    }
+  }
+
+  function formatDateTimeNice(iso){
+    if(!iso) return '-';
+    try{
+      var d = new Date(iso);
+      if(isNaN(d.getTime())) return '-';
+      var pad = function(n){ return n<10 ? '0'+n : ''+n; };
+      return d.getDate() + '/' + (d.getMonth()+1) + '/' + d.getFullYear() +
+             ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+    }catch(e){
+      return '-';
+    }
+  }
+
+  function updateSyncInfoUI(){
+    var spanText = document.getElementById('lastSyncText');
+    var spanUser = document.getElementById('lastSyncUser');
+    if(!spanText && !spanUser) return;
+    var lastAt = REMOTE_STATE && REMOTE_STATE.lastSyncAt ? REMOTE_STATE.lastSyncAt : null;
+    var lastBy = REMOTE_STATE && REMOTE_STATE.lastSyncBy ? REMOTE_STATE.lastSyncBy : null;
+    if(spanText){
+      spanText.textContent = formatDateTimeNice(lastAt);
+    }
+    if(spanUser){
+      spanUser.textContent = lastBy || '-';
+    }
+    updateOnlineStatusUI();
+  }
+
+  window.addEventListener('online', updateOnlineStatusUI);
+  window.addEventListener('offline', updateOnlineStatusUI);
 
   function uid(){ return 'm'+Math.random().toString(36).slice(2,9); }
   function dMonday(){
@@ -684,6 +759,10 @@
     document.getElementById('adminPanel').classList.add('hidden');
     document.getElementById('empPanel').classList.add('hidden');
     this.classList.add('hidden');
+    window._currentEmp = null;
+    window._currentUserLabel = 'Anonimo';
+    window._isAdminLogged = false;
+    updateSyncInfoUI();
   };
 
   // admin login
@@ -693,6 +772,9 @@
       document.getElementById('loginView').classList.add('hidden');
       document.getElementById('adminPanel').classList.remove('hidden');
       document.getElementById('logoutBtn').classList.remove('hidden');
+      window._currentEmp = null;
+      window._currentUserLabel = 'Admin';
+      window._isAdminLogged = true;
       initWeekInputs();
       renderEmpList();
       fillEmpSelectLogin();
@@ -702,6 +784,7 @@
       renderEmpStats();
       updateGenerateHint();
       updateTodayLabelUI();
+      updateSyncInfoUI();
     } else {
       alert('Password errata (usa "admin").');
     }
@@ -713,11 +796,18 @@
     var pin=document.getElementById('empPinLogin').value.trim();
     var emps=lsGet(STORAGE_EMP,[]);
     var ok=false;
+    var empName = '';
     for(var i=0;i<emps.length;i++){
-      if(emps[i].id===id && emps[i].pin===pin){ ok=true; break; }
+      if(emps[i].id===id && emps[i].pin===pin){
+        ok=true;
+        empName = emps[i].name || '';
+        break;
+      }
     }
     if(!ok){ alert('Nome o PIN errati.'); return; }
     window._currentEmp=id;
+    window._currentUserLabel = empName || 'Dipendente';
+    window._isAdminLogged = false;
     document.getElementById('loginView').classList.add('hidden');
     document.getElementById('empPanel').classList.remove('hidden');
     document.getElementById('logoutBtn').classList.remove('hidden');
@@ -725,6 +815,7 @@
     renderEmpSchedule();
     renderEmpRestPrefs();
     renderEmpOthersRest();
+    updateSyncInfoUI();
   };
 
   function updateTodayLabelUI(){
@@ -2218,6 +2309,7 @@ function computeHours(week){
     fillEmpSelectLogin();
     initWeekInputs();
     updateTodayLabelUI();
+    updateSyncInfoUI();
   })();
 </script>
 </body>
