@@ -43,6 +43,25 @@
     .title{font-weight:700;margin-bottom:8px;}
     label{display:block;font-size:.8rem;margin-bottom:3px;color:var(--text-soft);}
     input,select,textarea{width:100%;padding:8px 9px;border-radius:var(--radius-md);border:1px solid var(--border);background:#fff4dd;font-size:.9rem;}
+    /* campi orari più compatti nelle tabelle modello */
+    .main table input[type="time"],
+    .model-grid table input[type="time"]{
+      width:80px;
+      max-width:100%;
+      padding:4px 6px;
+      font-size:.85rem;
+      border-radius:12px;
+    }
+
+    @media (max-width:600px){
+      .main table input[type="time"],
+      .model-grid table input[type="time"]{
+        width:72px;
+        padding:3px 4px;
+        font-size:.85rem;
+      }
+    }
+
     textarea{resize:vertical;min-height:60px;}
     .tabs{display:flex;background:#f0dec1;border-radius:999px;padding:3px;margin-bottom:10px;}
     .tab-btn{flex:1;border-radius:999px;border:none;background:transparent;padding:7px 0;font-size:.85rem;}
@@ -229,7 +248,104 @@
 
     .screen-only{}
 
-    @media print{
+    
+    /* --- Layout tabelle standard (schermo) --- */
+    .main table:not(.print-table){
+      width:100%;
+      border-collapse:collapse;
+      font-size:.82rem;
+    }
+    .main table:not(.print-table) th,
+    .main table:not(.print-table) td{
+      padding:4px 6px;
+      border-bottom:1px solid #e1c89e;
+    }
+    .main table:not(.print-table) th{
+      text-align:left;
+      font-weight:600;
+      background:#f5e4c2;
+    }
+
+    /* --- Ottimizzazioni per smartphone --- */
+    @media (max-width:600px){
+      html,body{
+        height:100%;
+      }
+      body{
+        padding:4px;
+        align-items:stretch;
+      }
+      .app{
+        max-width:none;
+        border-radius:16px;
+        min-height:100dvh;
+        box-shadow:0 6px 24px rgba(75,42,11,.35);
+      }
+      header,footer{
+        padding:8px 10px;
+      }
+      .logo-row{
+        flex-direction:column;
+        align-items:flex-start;
+        gap:4px;
+      }
+      .logo-box img{
+        width:42px;
+        height:42px;
+      }
+      .main{
+        padding:8px 8px 10px;
+      }
+      /* campi e pulsanti più facili da cliccare */
+      input,select,textarea{
+        font-size:16px; /* evita lo zoom automatico su iOS */
+      }
+      .btn,
+      .btn-primary,
+      .btn-outline,
+      .btn-ghost,
+      .btn-warn,
+      .btn-smart{
+        padding:10px 14px;
+        font-size:.9rem;
+      }
+      /* bottoni principali a tutta larghezza */
+      #loginView .btn-primary,
+      #adminPanel .btn-primary,
+      #adminPanel .btn-warn{
+        width:100%;
+      }
+      .tabs{
+        margin-bottom:8px;
+      }
+      .tab-btn{
+        padding:8px 0;
+        font-size:.9rem;
+      }
+      /* tabelle larghe scorrono in orizzontale */
+      .main table:not(.print-table){
+        display:block;
+        overflow-x:auto;
+        -webkit-overflow-scrolling:touch;
+      }
+      .main table:not(.print-table) thead,
+      .main table:not(.print-table) tbody,
+      .main table:not(.print-table) tr,
+      .main table:not(.print-table) th,
+      .main table:not(.print-table) td{
+        white-space:nowrap;
+      }
+      /* riepiloghi ore un po' più grandi */
+      .hours-summary{
+        font-size:.8rem;
+      }
+      /* qualche margine in più tra le card */
+      .card{
+        margin-bottom:8px;
+      }
+    }
+
+@media print{
       html,body{background:#fff;padding:0;margin:0;font-family:Arial, sans-serif;font-size:10pt;}
       .app{box-shadow:none;border-radius:0;width:100%;max-width:none;background:#fff;}
       .screen-only{display:none!important;}
