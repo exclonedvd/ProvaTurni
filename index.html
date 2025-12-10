@@ -1934,7 +1934,8 @@ function computeHours(week){
         day.shifts.forEach(function(s,idx){
           var row=document.createElement('div');row.className='shift-row';
           var left=document.createElement('div');
-          left.textContent = s.role+': '+s.start+'-'+s.end;
+          var roleLabel = (s.role && s.role.trim ? s.role.trim() : s.role) || s.label || ('Dipendente '+(idx+1));
+          left.textContent = roleLabel+': '+s.start+'-'+s.end;
           var right=document.createElement('div');
 
           var sel=document.createElement('select');
@@ -2034,11 +2035,12 @@ function computeHours(week){
         day.shifts.forEach(function(s){
           var e=empsArr.find(function(x){return x.id===s.empId;});
           var name=e?e.name:'-';
+          var roleLabel = (s.role && s.role.trim ? s.role.trim() : s.role) || s.label || '-';
           html+='<tr>'+
             '<td>'+d.label+'</td>'+
             '<td>'+day.date+'</td>'+
             '<td>'+name+'</td>'+
-            '<td>'+s.role+'</td>'+
+            '<td>'+roleLabel+'</td>'+
             '<td>'+s.start+' - '+s.end+'</td>'+
           '</tr>';
         });
