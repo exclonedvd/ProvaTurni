@@ -2427,6 +2427,37 @@ function computeHours(week){
     updateTodayLabelUI();
     updateSyncInfoUI();
   })();
+
+  // iOS / mobile: quando si torna indietro dalla cronologia o si riapre il tab,
+  // forziamo un ridisegno dell'interfaccia leggendo di nuovo dallo stato locale.
+  window.addEventListener('pageshow', function(e){
+    if(e.persisted){
+      try{
+        renderEmpList();
+        fillEmpSelectLogin();
+        initWeekInputs();
+        updateTodayLabelUI();
+        updateSyncInfoUI();
+      }catch(err){
+        console.error('Errore ricaricando la UI dopo ritorno dalla cronologia', err);
+      }
+    }
+  });
+
+  document.addEventListener('visibilitychange', function(){
+    if(!document.hidden){
+      try{
+        renderEmpList();
+        fillEmpSelectLogin();
+        initWeekInputs();
+        updateTodayLabelUI();
+        updateSyncInfoUI();
+      }catch(err){
+        console.error('Errore ricaricando la UI dopo cambio visibilità', err);
+      }
+    }
+  });
+
 </script>
-</body>
+</body></body>
 </html>
