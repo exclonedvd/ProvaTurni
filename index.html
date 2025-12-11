@@ -35,6 +35,7 @@
     button{cursor:pointer;border:none;}
     .btn{padding:9px 14px;border-radius:999px;font-size:.9rem;}
     .btn-primary{background:linear-gradient(135deg,#c48a3b,#7b4a1a);color:#fff;border:1px solid #7b4a1a;box-shadow:0 4px 10px rgba(75,42,11,.4);}
+    .btn-danger{background:var(--bad);color:#fff;border-radius:999px;border:1px solid var(--bad);}    
     .btn-outline{background:transparent;border-radius:999px;border:1px solid var(--border);font-size:.8rem;padding:4px 10px;}
     .btn-ghost{background:rgba(255,255,255,.4);border-radius:999px;border:1px solid rgba(75,42,11,.2);font-size:.8rem;padding:5px 10px;}
     .btn-warn{background:linear-gradient(135deg,#e7b15f,#c48a3b);color:#4b2a0b;border:1px solid #a96f25;font-size:.8rem;padding:6px 10px;border-radius:999px;}
@@ -459,6 +460,10 @@
         <input id="empPin" value="1234">
 
         <button id="addEmpBtn" class="btn btn-primary" style="margin-top:8px;width:100%;">Aggiungi / aggiorna</button>
+        <button id="resetAllBtn" class="btn btn-danger" style="margin-top:8px;width:100%;">Resetta tutto (svuota database)</button>
+        <div style="font-size:.7rem;color:var(--bad);margin-top:4px;">
+          &#9888; Attenzione: elimina TUTTI i dipendenti, i turni, i modelli e lo stato giornaliero.
+        </div>
       </div>
 
       <div class="card screen-only">
@@ -1166,6 +1171,42 @@
     renderWeekDayStatus();
     renderEmpStats();
     updateGenerateHint();
+  };
+
+
+  // RESET COMPLETO DATABASE
+  document.getElementById('resetAllBtn').onclick = function () {
+    if (!window._isAdminLogged) {
+      alert('Devi essere loggato come admin per eseguire il reset.');
+      return;
+    }
+
+    var msg1 = 'ATTENZIONE!\n\nQuesta operazione cancellerà definitivamente TUTTI i dati: ' +
+               '\n- Dipendenti\n- Turni\n- Modelli turni\n- Stato giornaliero (riposi, ferie, malattia, ecc.)\n\nProcedere?';
+    if (!confirm(msg1)) return;
+
+    var msg2 = 'Conferma ulteriore:\n\nSei sicuro di voler SVUOTARE COMPLETAMENTE IL DATABASE?';
+    if (!confirm(msg2)) return;
+
+    // Azzeriamo lo stato applicativo salvato su Firestore
+    lsSet(STORAGE_EMP, []);          // dipendenti
+    lsSet(STORAGE_SCHED, {});        // turni
+    lsSet(STORAGE_DAY_STATUS, {});   // stato giornaliero
+    lsSet(STORAGE_MODELS, null);     // modelli turni
+
+    // Reinizializza UI
+    initWeekInputs();
+    renderEmpList();
+    fillEmpSelectLogin();
+    initModelsUI();
+    renderWeekDayStatus();
+    renderAdminSchedule();
+    renderEmpStats();
+    updateGenerateHint();
+    updateTodayLabelUI();
+    updateSyncInfoUI();
+
+    alert('Database svuotato correttamente.');
   };
 
   function renderEmpList(){
