@@ -1192,7 +1192,7 @@
     lsSet(STORAGE_EMP, []);          // dipendenti
     lsSet(STORAGE_SCHED, {});        // turni
     lsSet(STORAGE_DAY_STATUS, {});   // stato giornaliero
-    lsSet(STORAGE_MODELS, null);     // modelli turni
+    lsSet(STORAGE_MODELS, {});       // modelli turni
 
     // Reinizializza UI
     initWeekInputs();
@@ -2448,21 +2448,11 @@ function computeHours(week){
   (async function(){
     await loadRemoteState();
     var emps=lsGet(STORAGE_EMP,[]);
-    if(emps.length===0){
-      emps=[
-        {id:'e1',name:'Mario',min:20,max:40,pin:'1234',vacTot:26,restTarget:2},
-        {id:'e2',name:'Lucia',min:20,max:40,pin:'1234',vacTot:26,restTarget:2},
-        {id:'e3',name:'Paolo',min:20,max:40,pin:'1234',vacTot:26,restTarget:2},
-        {id:'e4',name:'Anna',min:20,max:40,pin:'1234',vacTot:26,restTarget:2}
-      ];
-      lsSet(STORAGE_EMP,emps);
-    }else{
-      var changed=false;
-      emps.forEach(function(e){
-        if(e.restTarget==null){ e.restTarget=2; changed=true; }
-      });
-      if(changed) lsSet(STORAGE_EMP, emps);
-    }
+    var changed=false;
+    emps.forEach(function(e){
+      if(e.restTarget==null){ e.restTarget=2; changed=true; }
+    });
+    if(changed) lsSet(STORAGE_EMP, emps);
 
     if(!lsGet(STORAGE_MODELS,null)){
       lsSet(STORAGE_MODELS, defaultModels());
